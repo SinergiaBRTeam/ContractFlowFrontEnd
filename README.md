@@ -4,6 +4,11 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 First, run the development server:
 
+Dev notes:
+```bash
+npm install vaul@latest
+```
+
 ```bash
 npm run dev
 # or
