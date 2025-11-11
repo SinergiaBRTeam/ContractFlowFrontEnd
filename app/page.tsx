@@ -1,38 +1,53 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Sidebar from "@/components/sidebar"
 import StatCard from "@/components/stat-card"
 import ContractCard from "@/components/contract-card"
+import { API_BASE_URL } from "@/lib/config"
+import { ContractSimpleDto } from "@/lib/api-types"
+
+interface Contract {
+  id: string;
+  status: string;
+  company: string;
+  unit: string;   
+  value: string;  
+  date: string;   
+}
 
 export default function Home() {
-  const [contracts] = useState([
-    {
-      id: "CT-2024-001",
-      status: "ATIVO",
-      company: "Fornecedor ABC Ltda",
-      unit: "Unidade Centro",
-      value: "R$ 45.000,00",
-      date: "Vence: 2024-12-15",
-    },
-    {
-      id: "CT-2024-002",
-      status: "ATIVO",
-      company: "Fornecedor ABC Ltda",
-      unit: "Unidade Centro",
-      value: "R$ 45.000,00",
-      date: "Vence: 2024-12-15",
-    },
-    {
-      id: "CT-2024-003",
-      status: "ATIVO",
-      company: "Fornecedor ABC Ltda",
-      unit: "Unidade Centro",
-      value: "R$ 45.000,00",
-      date: "Vence: 2024-12-15",
-    },
-  ])
+
+  const [contracts, setContracts] = useState<Contract[]>([])
+
+
+  useEffect(() => {
+    const fetchContracts = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/contracts`);
+        if (!response.ok) throw new Error("Falha ao buscar contratos");
+        
+        const data: ContractSimpleDto[] = await response.json();
+        
+      
+        const mappedContracts: Contract[] = data.map(c => ({
+          id: c.officialNumber,
+          status: c.status,
+          company: `ID: ${c.id.substring(0, 8)}...`,
+          unit: "N/A",
+          value: "N/A",
+          date: "",    
+        }));
+        
+        setContracts(mappedContracts);
+      } catch (error) {
+        console.error("Erro ao buscar contratos:", error);
+      }
+    };
+
+    fetchContracts();
+  }, []);
 
   return (
     <div className="flex h-screen bg-background">
@@ -44,14 +59,12 @@ export default function Home() {
             <p className="text-muted-foreground">Visão geral do sistema de contratos</p>
           </div>
 
-          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <StatCard title="Contratos ativos" value="24" icon="📋" color="bg-blue-100" iconBg="bg-blue-500" />
             <StatCard title="Pendentes de ação" value="7" icon="⚠️" color="bg-orange-100" iconBg="bg-orange-500" />
             <StatCard title="Atrasados" value="3" icon="🚨" color="bg-red-100" iconBg="bg-red-500" />
           </div>
 
-          {/* Recent Contracts */}
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-semibold text-foreground">Contratos recentes</h2>

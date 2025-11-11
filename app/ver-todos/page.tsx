@@ -1,61 +1,50 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Sidebar from "@/components/sidebar"
 import ContractCard from "@/components/contract-card"
+import { API_BASE_URL } from "@/lib/config"
+import { ContractSimpleDto } from "@/lib/api-types"
+
+interface Contract {
+  id: string;
+  status: string;
+  company: string;
+  unit: string;
+  value: string;
+  date: string;
+}
 
 export default function VerTodos() {
-  const [contracts] = useState([
-    {
-      id: "CT-2024-001",
-      status: "ATIVO",
-      company: "Fornecedor ABC Ltda",
-      unit: "Unidade Centro",
-      value: "R$ 45.000,00",
-      date: "Vence: 2024-12-15",
-    },
-    {
-      id: "CT-2024-002",
-      status: "ATIVO",
-      company: "Fornecedor ABC Ltda",
-      unit: "Unidade Centro",
-      value: "R$ 45.000,00",
-      date: "Vence: 2024-12-15",
-    },
-    {
-      id: "CT-2024-003",
-      status: "ATIVO",
-      company: "Fornecedor ABC Ltda",
-      unit: "Unidade Centro",
-      value: "R$ 45.000,00",
-      date: "Vence: 2024-12-15",
-    },
-    {
-      id: "CT-2024-004",
-      status: "ATIVO",
-      company: "Fornecedor ABC Ltda",
-      unit: "Unidade Centro",
-      value: "R$ 45.000,00",
-      date: "Vence: 2024-12-15",
-    },
-    {
-      id: "CT-2024-005",
-      status: "ATIVO",
-      company: "Fornecedor ABC Ltda",
-      unit: "Unidade Centro",
-      value: "R$ 45.000,00",
-      date: "Vence: 2024-12-15",
-    },
-    {
-      id: "CT-2024-006",
-      status: "ATIVO",
-      company: "Fornecedor ABC Ltda",
-      unit: "Unidade Centro",
-      value: "R$ 45.000,00",
-      date: "Vence: 2024-12-15",
-    },
-  ])
+  const [contracts, setContracts] = useState<Contract[]>([]) 
+
+
+  useEffect(() => {
+    const fetchContracts = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/contracts`);
+        if (!response.ok) throw new Error("Falha ao buscar contratos");
+        
+        const data: ContractSimpleDto[] = await response.json();
+        
+        const mappedContracts: Contract[] = data.map(c => ({
+          id: c.officialNumber,
+          status: c.status,
+          company: `ID: ${c.id.substring(0, 8)}...`,
+          unit: "N/A",
+          value: "N/A",
+          date: `ID Real: ${c.id}`,
+        }));
+        
+        setContracts(mappedContracts);
+      } catch (error) {
+        console.error("Erro ao buscar contratos:", error);
+      }
+    };
+
+    fetchContracts();
+  }, []);
 
   return (
     <div className="flex h-screen bg-background">
@@ -67,10 +56,10 @@ export default function VerTodos() {
             <p className="text-muted-foreground">Visão geral do sistema de contratos</p>
           </div>
 
-          {/* All Contracts */}
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-semibold text-foreground">Contratos recentes</h2>
+              {/* Avisa sobre a limitação do backend */}
+              <h2 className="text-lg font-semibold text-foreground">Contratos recentes (Máx. 20)</h2>
               <Link href="/" className="text-primary hover:text-primary/80 text-sm font-medium">
                 ← Voltar
               </Link>

@@ -2,57 +2,102 @@
 
 import Sidebar from "@/components/sidebar"
 import { AlertTriangle, TrendingUp, Shield, AlertCircle } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { API_BASE_URL } from "@/lib/config"
+import { PenaltyReportDto } from "@/lib/api-types"
+
+interface RiskItem {
+  id: string;
+  title: string;
+  contract: string;
+  level: string;
+  levelColor: string;
+  probability: number;
+  impact: number;
+  description: string;
+}
 
 export default function PainelRiscosPage() {
-  const [risks] = useState([
-    {
-      id: 1,
-      title: "Risco de Não Conformidade",
-      contract: "CT-2024-001",
-      level: "Alto",
-      levelColor: "bg-red-100 text-red-800",
-      probability: 75,
-      impact: 90,
-      description: "Fornecedor apresentou 3 não conformidades no último trimestre",
-    },
-    {
-      id: 2,
-      title: "Risco Financeiro",
-      contract: "CT-2024-002",
-      level: "Médio",
-      levelColor: "bg-yellow-100 text-yellow-800",
-      probability: 45,
-      impact: 60,
-      description: "Possível aumento de custos devido à inflação",
-    },
-    {
-      id: 3,
-      title: "Risco Operacional",
-      contract: "CT-2024-003",
-      level: "Baixo",
-      levelColor: "bg-green-100 text-green-800",
-      probability: 20,
-      impact: 30,
-      description: "Dependência de um único fornecedor para serviços críticos",
-    },
-    {
-      id: 4,
-      title: "Risco de Rescisão",
-      contract: "CT-2024-004",
-      level: "Alto",
-      levelColor: "bg-red-100 text-red-800",
-      probability: 60,
-      impact: 85,
-      description: "Contrato próximo do vencimento sem renovação confirmada",
-    },
-  ])
+  const [risks, setRisks] = useState<RiskItem[]>([])
+  const [stats, setStats] = useState({ high: 0, medium: 0, low: 0 });
+
+  const getRiskColor = (severity: string) => {
+    switch (severity.toLowerCase()) {
+      case "alto":
+      case "high":
+      case "critical":
+        return "bg-red-100 text-red-800";
+      case "médio":
+      case "medium":
+        return "bg-yellow-100 text-yellow-800";
+      case "baixo":
+      case "low":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+  
+  const getRiskLevel = (severity: string) => {
+     switch (severity.toLowerCase()) {
+      case "alto":
+      case "high":
+      case "critical":
+        return "Alto";
+      case "médio":
+      case "medium":
+        return "Médio";
+      case "baixo":
+      case "low":
+        return "Baixo";
+      default:
+        return "Indefinido";
+    }
+  }
+
+  useEffect(() => {
+    const fetchRisks = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/reports/penalties`);
+        const data: PenaltyReportDto[] = await response.json();
+        
+        let high = 0, medium = 0, low = 0;
+        
+        const mappedRisks: RiskItem[] = data.map(r => {
+          const level = getRiskLevel(r.severity);
+          if (level === 'Alto') high++;
+          else if (level === 'Médio') medium++;
+          else if (level === 'Baixo') low++;
+
+          return {
+            id: r.penaltyId,
+            title: r.type,
+            contract: `CT: ${r.contractId.substring(0, 8)}...`,
+            level: level,
+            levelColor: getRiskColor(r.severity),
+            probability: 50,
+            impact: 50,
+            description: r.reason,
+          };
+        });
+        
+        setRisks(mappedRisks);
+        setStats({ high, medium, low });
+
+      } catch (error) {
+        console.error("Erro ao buscar relatório de penalidades:", error);
+      }
+    };
+    
+    fetchRisks();
+  }, []);
 
   const riskMatrix = [
-    { level: "Alto", count: 2, color: "bg-red-500" },
-    { level: "Médio", count: 1, color: "bg-yellow-500" },
-    { level: "Baixo", count: 1, color: "bg-green-500" },
-  ]
+    { level: "Alto", count: stats.high, color: "bg-red-500" },
+    { level: "Médio", count: stats.medium, color: "bg-yellow-500" },
+    { level: "Baixo", count: stats.low, color: "bg-green-500" },
+  ];
+  const totalRisks = stats.high + stats.medium + stats.low;
 
   return (
     <div className="flex h-screen bg-background">
@@ -70,7 +115,7 @@ export default function PainelRiscosPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-muted-foreground text-sm mb-1">Riscos Críticos</p>
-                  <p className="text-3xl font-bold text-red-500">2</p>
+                  <p className="text-3xl font-bold text-red-500">{stats.high}</p>
                 </div>
                 <AlertTriangle size={32} className="text-red-500" />
               </div>
@@ -79,7 +124,7 @@ export default function PainelRiscosPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-muted-foreground text-sm mb-1">Riscos Médios</p>
-                  <p className="text-3xl font-bold text-yellow-500">1</p>
+                  <p className="text-3xl font-bold text-yellow-500">{stats.medium}</p>
                 </div>
                 <AlertCircle size={32} className="text-yellow-500" />
               </div>
@@ -88,7 +133,7 @@ export default function PainelRiscosPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-muted-foreground text-sm mb-1">Riscos Baixos</p>
-                  <p className="text-3xl font-bold text-green-500">1</p>
+                  <p className="text-3xl font-bold text-green-500">{stats.low}</p>
                 </div>
                 <Shield size={32} className="text-green-500" />
               </div>
@@ -96,8 +141,8 @@ export default function PainelRiscosPage() {
             <div className="bg-white rounded-2xl shadow-sm p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-sm mb-1">Score Geral</p>
-                  <p className="text-3xl font-bold text-primary">6.2/10</p>
+                  <p className="text-muted-foreground text-sm mb-1">Total de Riscos</p>
+                  <p className="text-3xl font-bold text-primary">{totalRisks}</p>
                 </div>
                 <TrendingUp size={32} className="text-primary" />
               </div>
@@ -108,7 +153,7 @@ export default function PainelRiscosPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <div className="bg-white rounded-2xl shadow-sm p-6">
-                <h2 className="text-lg font-semibold text-foreground mb-6">Detalhamento de Riscos</h2>
+                <h2 className="text-lg font-semibold text-foreground mb-6">Detalhamento de Riscos (Baseado em Penalidades)</h2>
                 <div className="space-y-4">
                   {risks.map((risk) => (
                     <div
@@ -125,24 +170,10 @@ export default function PainelRiscosPage() {
                         </span>
                       </div>
                       <p className="text-sm text-foreground mb-4">{risk.description}</p>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Probabilidade</p>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-orange-500 h-2 rounded-full" style={{ width: `${risk.probability}%` }} />
-                          </div>
-                          <p className="text-xs font-medium text-foreground mt-1">{risk.probability}%</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Impacto</p>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-red-500 h-2 rounded-full" style={{ width: `${risk.impact}%` }} />
-                          </div>
-                          <p className="text-xs font-medium text-foreground mt-1">{risk.impact}%</p>
-                        </div>
-                      </div>
+                      {/* Barras de Probabilidade e Impacto são estáticas pois não vêm do backend */}
                     </div>
                   ))}
+                  {risks.length === 0 && <p>Nenhuma penalidade (risco) encontrada.</p>}
                 </div>
               </div>
             </div>
@@ -160,29 +191,11 @@ export default function PainelRiscosPage() {
                     <div className="w-full bg-gray-200 rounded-full h-3">
                       <div
                         className={`${item.color} h-3 rounded-full`}
-                        style={{ width: `${(item.count / 4) * 100}%` }}
+                        style={{ width: `${totalRisks > 0 ? (item.count / totalRisks) * 100 : 0}%` }}
                       />
                     </div>
                   </div>
                 ))}
-              </div>
-
-              <div className="mt-8 pt-6 border-t border-gray-200">
-                <h3 className="font-semibold text-foreground mb-4">Ações Recomendadas</h3>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex gap-2">
-                    <span className="text-primary font-bold">•</span>
-                    <span>Revisar conformidade do fornecedor CT-2024-001</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-primary font-bold">•</span>
-                    <span>Iniciar negociação de renovação CT-2024-004</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-primary font-bold">•</span>
-                    <span>Avaliar alternativas de fornecedores</span>
-                  </li>
-                </ul>
               </div>
             </div>
           </div>

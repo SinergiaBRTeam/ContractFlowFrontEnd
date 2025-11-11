@@ -2,51 +2,84 @@
 
 import Sidebar from "@/components/sidebar"
 import { Calendar, Clock, AlertCircle, CheckCircle2 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { API_BASE_URL } from "@/lib/config"
+import { AlertDto } from "@/lib/api-types"
+
+
+interface EventItem {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  status: string;
+  statusColor: string;
+  daysLeft: number;
+  contract: string; 
+}
 
 export default function AgendaPrazosPage() {
-  const [events] = useState([
-    {
-      id: 1,
-      title: "Vencimento - CT-2024-001",
-      date: "2024-12-15",
-      time: "23:59",
-      status: "Crítico",
-      statusColor: "bg-red-100 text-red-800",
-      daysLeft: 52,
-      contract: "CT-2024-001",
-    },
-    {
-      id: 2,
-      title: "Revisão Contratual - CT-2024-002",
-      date: "2024-11-30",
-      time: "09:00",
-      status: "Atenção",
-      statusColor: "bg-yellow-100 text-yellow-800",
-      daysLeft: 37,
-      contract: "CT-2024-002",
-    },
-    {
-      id: 3,
-      title: "Inspeção Programada - CT-2024-003",
-      date: "2024-11-10",
-      time: "14:00",
-      status: "Planejado",
-      statusColor: "bg-blue-100 text-blue-800",
-      daysLeft: 17,
-      contract: "CT-2024-003",
-    },
-    {
-      id: 4,
-      title: "Renovação - CT-2024-004",
-      date: "2024-10-28",
-      time: "10:00",
-      status: "Concluído",
-      statusColor: "bg-green-100 text-green-800",
-      daysLeft: -5,
-      contract: "CT-2024-004",
-    },
-  ])
+  const [events, setEvents] = useState<EventItem[]>([])
+  const [stats, setStats] = useState({ next7: 0, next30: 0, overdue: 0, done: 0 })
+
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/alerts`);
+        const data: AlertDto[] = await response.json();
+        
+        const now = new Date();
+        const nowTime = now.getTime();
+        
+        let next7 = 0;
+        let next30 = 0;
+        let overdue = 0;
+
+        const mappedEvents: EventItem[] = data.map(alert => {
+          const targetDate = new Date(alert.targetDate);
+          const diffTime = targetDate.getTime() - nowTime;
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          let status = "Planejado";
+          let statusColor = "bg-blue-100 text-blue-800";
+
+          if (diffDays <= 0) {
+            status = "Crítico";
+            statusColor = "bg-red-100 text-red-800";
+            overdue++;
+          } else if (diffDays <= 7) {
+            status = "Atenção";
+            statusColor = "bg-yellow-100 text-yellow-800";
+            next7++;
+            next30++; 
+          } else if (diffDays <= 30) {
+            status = "Planejado";
+            statusColor = "bg-blue-100 text-blue-800";
+            next30++;
+          }
+
+          return {
+            id: alert.id,
+            title: alert.message.length > 50 ? alert.message.substring(0, 50) + '...' : alert.message,
+            date: targetDate.toISOString().split('T')[0],
+            time: targetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: status,
+            statusColor: statusColor,
+            daysLeft: diffDays > 0 ? diffDays : 0,
+            contract: alert.contractId ? `CT: ${alert.contractId.substring(0, 8)}...` : `DL: ${alert.deliverableId?.substring(0, 8)}...`,
+          };
+        });
+        
+        setEvents(mappedEvents);
+        setStats({ next7, next30, overdue, done: 0 }); 
+        
+      } catch (error) {
+        console.error("Erro ao buscar alertas:", error);
+      }
+    };
+    
+    fetchAlerts();
+  }, []);
 
   return (
     <div className="flex h-screen bg-background">
@@ -63,7 +96,7 @@ export default function AgendaPrazosPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-muted-foreground text-sm mb-1">Próximos 7 dias</p>
-                  <p className="text-3xl font-bold text-primary">2</p>
+                  <p className="text-3xl font-bold text-primary">{stats.next7}</p>
                 </div>
                 <AlertCircle size={32} className="text-orange-500" />
               </div>
@@ -72,7 +105,7 @@ export default function AgendaPrazosPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-muted-foreground text-sm mb-1">Próximos 30 dias</p>
-                  <p className="text-3xl font-bold text-primary">5</p>
+                  <p className="text-3xl font-bold text-primary">{stats.next30}</p>
                 </div>
                 <Calendar size={32} className="text-blue-500" />
               </div>
@@ -81,7 +114,7 @@ export default function AgendaPrazosPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-muted-foreground text-sm mb-1">Atrasados</p>
-                  <p className="text-3xl font-bold text-red-500">1</p>
+                  <p className="text-3xl font-bold text-red-500">{stats.overdue}</p>
                 </div>
                 <AlertCircle size={32} className="text-red-500" />
               </div>
@@ -90,7 +123,7 @@ export default function AgendaPrazosPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-muted-foreground text-sm mb-1">Concluídos</p>
-                  <p className="text-3xl font-bold text-green-500">12</p>
+                  <p className="text-3xl font-bold text-green-500">{stats.done}</p>
                 </div>
                 <CheckCircle2 size={32} className="text-green-500" />
               </div>
