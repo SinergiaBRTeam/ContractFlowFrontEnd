@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import Sidebar from "@/components/sidebar"
-import { Search, Eye, Trash2, Plus, CheckSquare, AlertTriangle, Scale, ClipboardCheck, UploadCloud } from "lucide-react"
+import {Download, FileText, Camera} from "lucide-react"
+import { Search, Eye, Trash2, Plus, CheckSquare, AlertTriangle, Scale, ClipboardCheck, UploadCloud, CheckCircle } from "lucide-react"
 import { API_BASE_URL } from "@/lib/config"
 import { 
   ContractSimpleDto, ContractDetailsDto, CreateObligationRequest, 
@@ -18,6 +19,19 @@ interface ContractSearchResult {
   company: string;
 }
 
+interface Attachment {
+  id: string;
+  fileName: string;
+  mimeType: string;
+}
+
+interface InspectionViewDto {
+  id: string;
+  date: string;
+  inspector: string;
+  notes: string;
+}
+
 export default function ContratosPage() {
   // ... (Mantenha os estados existentes: activeTab, searchTerm, etc.)
   const [activeTab, setActiveTab] = useState("search")
@@ -27,6 +41,9 @@ export default function ContratosPage() {
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [contractDetails, setContractDetails] = useState<ContractDetailsDto | null>(null);
   const [detailsTab, setDetailsTab] = useState("info");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [inspectionsList, setInspectionsList] = useState<InspectionViewDto[]>([]);
+  const [viewingDeliverableId, setViewingDeliverableId] = useState<string | null>(null);
   
   // Modais
   const [activeModal, setActiveModal] = useState<"deliverable" | "noncompliance" | "penalty" | "inspection" | "evidence" | null>(null);
@@ -66,6 +83,37 @@ export default function ContratosPage() {
       setContractDetails(data);
     } catch (error) { console.error(error); }
   };
+
+const fetchAttachments = async () => {
+    if (!selectedContractId) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/contracts/${selectedContractId}/attachments`);
+      if (res.ok) setAttachments(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchInspections = async (deliverableId: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/deliverables/${deliverableId}/inspections`);
+      if (res.ok) {
+        setInspectionsList(await res.json());
+        setViewingDeliverableId(deliverableId);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const handleDownloadAttachment = (id: string, fileName: string) => {
+      window.open(`${API_BASE_URL}/api/attachments/${id}/download`, '_blank');
+  };
+
+  // Atualize o useEffect que carrega detalhes para buscar anexos também
+  useEffect(() => {
+    if (activeTab === "details" && selectedContractId) { 
+        fetchDetails(); 
+        fetchAttachments();
+        setDetailsTab("info"); 
+    }
+  }, [activeTab, selectedContractId]);
 
   useEffect(() => {
     const fetchContracts = async () => {
@@ -120,7 +168,6 @@ export default function ContratosPage() {
     } catch (e) { alert("Erro ao excluir."); }
   };
 
-  // ... (Mantenha handleCreateDeliverable, handleMarkDelivered, handleRegisterNonCompliance, handleApplyPenalty) ...
   const handleCreateDeliverable = async () => {
     if (!selectedObligationId) return;
     try {
@@ -178,8 +225,6 @@ export default function ContratosPage() {
       alert("Penalidade aplicada!");
     } catch { alert("Erro ao aplicar penalidade"); }
   };
-
-  // --- NOVAS FUNÇÕES DE FISCALIZAÇÃO ---
 
   const handleRegisterInspection = async () => {
     if (!selectedDeliverableId) return;
@@ -272,11 +317,30 @@ export default function ContratosPage() {
 
             {/* ... (Aba Info e Obligations mantidas) ... */}
             {detailsTab === 'info' && (
-              <div className="grid grid-cols-2 gap-6">
-                <div><p className="text-xs text-gray-500">Fornecedor</p><p className="font-medium">{contractDetails.supplierName}</p></div>
-                <div><p className="text-xs text-gray-500">Valor</p><p className="font-medium">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: contractDetails.currency }).format(contractDetails.totalAmount)}</p></div>
-                <div><p className="text-xs text-gray-500">Vigência</p><p className="font-medium">{new Date(contractDetails.termStart).toLocaleDateString()} - {new Date(contractDetails.termEnd).toLocaleDateString()}</p></div>
-                <div><p className="text-xs text-gray-500">Modalidade</p><p className="font-medium">{contractDetails.modality}</p></div>
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div><p className="text-xs text-gray-500">Fornecedor</p><p className="font-medium">{contractDetails.supplierName}</p></div>
+                  <div><p className="text-xs text-gray-500">Valor</p><p className="font-medium">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: contractDetails.currency }).format(contractDetails.totalAmount)}</p></div>
+                  <div><p className="text-xs text-gray-500">Vigência</p><p className="font-medium">{new Date(contractDetails.termStart).toLocaleDateString()} - {new Date(contractDetails.termEnd).toLocaleDateString()}</p></div>
+                  <div><p className="text-xs text-gray-500">Modalidade</p><p className="font-medium">{contractDetails.modality}</p></div>
+                </div>
+                
+                {/* LISTA DE ANEXOS DO CONTRATO */}
+                <div className="border-t pt-4">
+                    <h4 className="font-semibold mb-3 flex items-center gap-2"><FileText size={18}/> Documentos Anexados</h4>
+                    {attachments.length === 0 ? <p className="text-sm text-gray-400">Nenhum documento.</p> : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {attachments.map(att => (
+                                <div key={att.id} className="flex justify-between items-center p-2 border rounded bg-gray-50 text-sm">
+                                    <span className="truncate max-w-[200px]">{att.fileName}</span>
+                                    <button onClick={() => handleDownloadAttachment(att.id, att.fileName)} className="text-blue-600 hover:underline flex items-center gap-1">
+                                        <Download size={14}/> Baixar
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
               </div>
             )}
 
@@ -334,27 +398,92 @@ export default function ContratosPage() {
                       {ob.deliverables.length === 0 ? <p className="text-sm text-gray-400">Nenhum entregável definido.</p> : (
                         <div className="space-y-2">
                           {ob.deliverables.map(dev => (
-                            <div key={dev.id} className="bg-white border p-3 rounded flex justify-between items-center">
-                              <div>
-                                <span className="font-medium">{dev.quantity} {dev.unit}</span>
-                                <span className="text-sm text-gray-500 mx-2">|</span>
-                                <span className="text-sm text-gray-500">Previsto: {new Date(dev.expectedDate).toLocaleDateString()}</span>
-                              </div>
-                              <div className="flex gap-2 items-center">
-                                 {/* Botões de Fiscalização */}
-                                <button onClick={() => { setSelectedDeliverableId(dev.id); setActiveModal("inspection"); }} className="text-xs border border-gray-300 px-2 py-1 rounded hover:bg-gray-100 flex gap-1" title="Registrar Inspeção">
-                                    <ClipboardCheck size={14}/> Insp.
-                                </button>
-                                <button onClick={() => { setSelectedDeliverableId(dev.id); setActiveModal("evidence"); }} className="text-xs border border-gray-300 px-2 py-1 rounded hover:bg-gray-100 flex gap-1" title="Anexar Evidência">
-                                    <UploadCloud size={14}/> Evid.
-                                </button>
+                            <div key={dev.id} className="bg-white border p-3 rounded mb-2 transition-all">
+                              <div className="flex justify-between items-center">
+                                {/* Informações do Entregável */}
+                                <div>
+                                  <span className="font-medium">{dev.quantity} {dev.unit}</span>
+                                  <span className="text-sm text-gray-500 mx-2">|</span>
+                                  <span className={`text-sm ${new Date(dev.expectedDate) < new Date() && !dev.deliveredAt ? "text-red-600 font-bold" : "text-gray-500"}`}>
+                                    Previsto: {new Date(dev.expectedDate).toLocaleDateString()}
+                                  </span>
+                                </div>
 
-                                {dev.deliveredAt ? (
-                                    <span className="text-green-600 text-sm font-bold flex items-center gap-1 px-2"><CheckSquare size={16}/> Entregue</span>
-                                ) : (
-                                    <button onClick={() => handleMarkDelivered(dev.id)} className="text-sm bg-green-50 text-green-600 px-2 py-1 rounded hover:bg-green-100">Confirmar</button>
-                                )}
+                                {/* Botões de Ação */}
+                                <div className="flex gap-2 items-center">
+                                  {/* 1. Botão para Abrir/Fechar o Histórico de Inspeções (NOVO) */}
+                                  <button 
+                                    onClick={() => viewingDeliverableId === dev.id ? setViewingDeliverableId(null) : fetchInspections(dev.id)} 
+                                    className={`text-xs px-2 py-1 rounded flex gap-1 transition-colors ${viewingDeliverableId === dev.id ? "bg-gray-200 text-gray-800" : "border border-gray-300 hover:bg-gray-50 text-gray-600"}`}
+                                    title="Ver histórico de inspeções"
+                                  >
+                                    <Camera size={14}/> {viewingDeliverableId === dev.id ? "Ocultar" : "Histórico"}
+                                  </button>
+                                  
+                                  {/* 2. Botão Registrar Inspeção */}
+                                  <button 
+                                    onClick={() => { setSelectedDeliverableId(dev.id); setActiveModal("inspection"); }} 
+                                    className="text-xs border border-blue-200 text-blue-700 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 flex gap-1" 
+                                    title="Registrar Nova Inspeção"
+                                  >
+                                    <ClipboardCheck size={14}/> +Insp.
+                                  </button>
+
+                                  {/* 3. Botão Anexar Evidência (JÁ EXISTIA) */}
+                                  <button 
+                                    onClick={() => { setSelectedDeliverableId(dev.id); setActiveModal("evidence"); }} 
+                                    className="text-xs border border-gray-300 px-2 py-1 rounded hover:bg-gray-100 flex gap-1" 
+                                    title="Anexar Arquivo de Evidência"
+                                  >
+                                    <UploadCloud size={14}/> Evid.
+                                  </button>
+
+                                  {/* 4. Status de Entrega (JÁ EXISTIA) */}
+                                  {dev.deliveredAt ? (
+                                    <span className="text-green-600 text-sm font-bold flex items-center gap-1 px-2 bg-green-50 rounded border border-green-100">
+                                      <CheckCircle size={14}/> Entregue
+                                    </span>
+                                  ) : (
+                                    <button 
+                                      onClick={() => handleMarkDelivered(dev.id)} 
+                                      className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 shadow-sm"
+                                    >
+                                      Concluir
+                                    </button>
+                                  )}
+                                </div>
                               </div>
+
+                              {/* --- ÁREA EXPANSÍVEL DE HISTÓRICO DE INSPEÇÕES (NOVO) --- */}
+                              {/* Só aparece se viewingDeliverableId for igual ao ID deste entregável */}
+                              {viewingDeliverableId === dev.id && (
+                                <div className="mt-4 pt-3 border-t border-gray-100">
+                                  <h5 className="text-xs font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                    <FileText size={14}/> Histórico de Fiscalização
+                                  </h5>
+                                  
+                                  {inspectionsList.length === 0 ? (
+                                    <div className="text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                                      <p className="text-xs text-gray-400">Nenhuma inspeção registrada para este item.</p>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-2 pl-2 border-l-2 border-primary/20">
+                                      {inspectionsList.map(ins => (
+                                        <div key={ins.id} className="text-sm bg-gray-50 p-3 rounded-r-lg border-b border-gray-100 last:border-0">
+                                          <div className="flex justify-between font-semibold text-gray-700 mb-1">
+                                            <span className="flex items-center gap-2">
+                                              📅 {new Date(ins.date).toLocaleDateString()} 
+                                              <span className="font-normal text-gray-400">|</span> 
+                                              👤 {ins.inspector}
+                                            </span>
+                                          </div>
+                                          <p className="text-gray-600 text-xs italic">"{ins.notes || "Sem observações registradas."}"</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

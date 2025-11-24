@@ -3,6 +3,10 @@ export interface ContractSimpleDto {
     officialNumber: string;
     status: string;
     isDeleted: boolean;
+    supplierName?: string;
+    totalValue?: number;
+    currency?: string;
+    createdAt?: string;
 }
 
 export interface SupplierDto {
@@ -37,7 +41,18 @@ export interface CreateSupplierRequest {
     active: boolean;
 }
 
+export interface UpdateSupplierRequest {
+    corporateName: string;
+    cnpj: string;
+    active: boolean;
+}
+
 export interface CreateOrgUnitRequest {
+    name: string;
+    code?: string;
+}
+
+export interface UpdateOrgUnitRequest {
     name: string;
     code?: string;
 }
@@ -47,6 +62,13 @@ export interface CreateObligationRequest {
     description: string;
     dueDate?: string;
     status?: string;
+}
+
+export interface UpdateObligationRequest {
+    clauseRef: string;
+    description: string;
+    dueDate?: string;
+    status: string;
 }
 
 export interface PenaltyDto {
@@ -157,7 +179,7 @@ export interface DueDeliverableReportDto {
     contractId: string;
     officialNumber: string;
     deliverableId: string;
-    description: string; // Vindo da Obrigação
+    description: string; 
     expectedDate: string;
     daysOverdue: number;
 }
@@ -174,6 +196,12 @@ export interface CreateInspectionRequest {
     notes: string;
 }
 
+export interface UpdateInspectionRequest {
+    date: string;
+    inspector: string;
+    notes: string;
+}
+
 export interface InspectionDto {
     id: string;
     date: string;
@@ -181,7 +209,15 @@ export interface InspectionDto {
     notes: string;
 }
 
-// DTOs para Relatórios de Desempenho
+export interface EvidenceDto {
+    id: string;
+    fileName: string;
+    mimeType: string;
+    notes?: string;
+    deliverableId?: string;
+    inspectionId?: string;
+}
+
 export interface DeliveriesBySupplierDto {
     supplierName: string;
     totalDeliveries: number;

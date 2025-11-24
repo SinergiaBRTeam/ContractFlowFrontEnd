@@ -4,6 +4,7 @@ import Sidebar from "@/components/sidebar"
 import { Upload, FileText, CheckCircle, Plus, Building2, Users, Trash2, FileSignature } from "lucide-react"
 import { useState, useEffect, ChangeEvent, FormEvent } from "react"
 import { API_BASE_URL } from "@/lib/config"
+import { toast } from "sonner"
 import { ContractSimpleDto, AttachmentDto, SupplierDto, OrgUnitDto, CreateContractRequest, CreateSupplierRequest, CreateOrgUnitRequest } from "@/lib/api-types"
 
 export default function CadastrarPage() {
@@ -75,12 +76,13 @@ export default function CadastrarPage() {
         body: JSON.stringify(body)
       })
       if (!res.ok) throw new Error("Erro na requisição")
-      alert(successMsg)
+      
+      toast.success(successMsg) // <--- LINHA ALTERADA
       clearForm()
-      fetchAllData() // Recarrega listas
+      fetchAllData() 
     } catch (err) {
       console.error(err)
-      alert("Erro ao salvar.")
+      toast.error("Ocorreu um erro ao tentar salvar.") // <--- LINHA ALTERADA
     } finally {
       setIsLoading(false)
     }
@@ -105,32 +107,51 @@ export default function CadastrarPage() {
 
   // --- Deletes ---
   const handleDelete = async (url: string) => {
+    // Podemos usar um toast com promessa ou confirmação customizada no futuro, 
+    // mas por enquanto o confirm nativo é seguro para deleção crítica.
     if (!confirm("Tem certeza que deseja excluir?")) return
+    
     try {
       const res = await fetch(url, { method: "DELETE" })
       if (!res.ok) throw new Error("Erro ao excluir")
+      toast.success("Item excluído com sucesso!") // <--- ADICIONADO
       fetchAllData()
     } catch (err) {
-      alert("Erro ao excluir (pode estar em uso).")
+      toast.error("Erro ao excluir. O item pode estar em uso.") // <--- ADICIONADO
     }
   }
 
   // --- Upload Logic ---
   const handleUploadSubmit = async () => {
-    if (!selectedFile || !selectedContractId) return
+    if (!selectedFile || !selectedContractId) {
+        toast.warning("Selecione um contrato e um arquivo.");
+        return;
+    }
+
     setIsLoading(true)
     const formData = new FormData()
-    formData.append("file", selectedFile)
+    formData.append("file", selectedFile) 
+
     try {
       const res = await fetch(`${API_BASE_URL}/api/contracts/${selectedContractId}/attachments`, {
-        method: "POST", body: formData
+        method: "POST", 
+        body: formData
       })
+
       if (!res.ok) throw new Error("Falha no upload")
+      
       const newAtt = await res.json()
       setUploadedFiles(prev => [newAtt, ...prev])
       setSelectedFile(null)
-      alert("Sucesso!")
-    } catch (err) { alert("Erro no upload.") }
+      
+      // AQUI ESTAVA O ALERT: Substituído pelo toast
+      toast.success("Documento enviado com sucesso!") 
+      
+    } catch (err) { 
+      console.error(err);
+      // AQUI ESTAVA O ALERT: Substituído pelo toast
+      toast.error("Erro ao enviar o documento. Tente novamente.") 
+    }
     finally { setIsLoading(false) }
   }
 
