@@ -256,9 +256,9 @@ export default function ContratosPage() {
     }
     try {
       const payload: CreateDeliverableRequest = {
-        ...newDeliverable,
         expectedDate: new Date(newDeliverable.expectedDate).toISOString(),
-        unit: newDeliverable.unit || null,
+        quantity: Number(newDeliverable.quantity),
+        ...(newDeliverable.unit ? { unit: newDeliverable.unit } : {}),
       };
       const res = await fetch(`${API_BASE_URL}/api/obligations/${selectedObligationId}/deliverables`, {
         method: "POST",
