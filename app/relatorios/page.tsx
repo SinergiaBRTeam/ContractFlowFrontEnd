@@ -104,14 +104,23 @@ return (
                                 </tr>
                             </thead>
                             <tbody>
-                                {dueData.map((item, i) => (
-                                    <tr key={i} className="border-b last:border-0">
-                                        <td className="p-3 font-medium">{item.officialNumber}</td>
-                                        <td className="p-3">{item.description}</td>
-                                        <td className="p-3">{new Date(item.expectedDate).toLocaleDateString()}</td>
-                                        <td className="p-3 text-red-600 font-bold">{item.daysOverdue} dias</td>
-                                    </tr>
-                                ))}
+                                {dueData.map((item, i) => {
+                                    // FIX: If essential data is missing, skip the row entirely
+                                    if (!item.officialNumber && !item.description) return null;
+
+                                    return (
+                                        <tr key={i} className="border-b last:border-0">
+                                            {/* Add fallback text using || operator */}
+                                            <td className="p-3 font-medium">{item.officialNumber || "—"}</td>
+                                            <td className="p-3">{item.description || "Sem descrição"}</td>
+                                            <td className="p-3">{new Date(item.expectedDate).toLocaleDateString()}</td>
+                                            <td className="p-3 text-red-600 font-bold">
+                                                {/* Ensure a number always displays */}
+                                                {item.daysOverdue ?? 0} dias
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                         {dueData.length === 0 && <p className="text-center py-4 text-gray-500">Nenhum atraso.</p>}

@@ -217,6 +217,7 @@ export default function CadastrarPage() {
                     <input required type="date" name="termStart" value={contractForm.termStart} onChange={handleInputChange(setContractForm)} className="border p-2 rounded" />
                     <input required type="date" name="termEnd" value={contractForm.termEnd} onChange={handleInputChange(setContractForm)} className="border p-2 rounded" />
                   </div>
+                  <h3 className="font-semibold border-b pb-2">Valor Total</h3>
                   <input required type="number" step="0.01" name="totalAmount" value={contractForm.totalAmount} onChange={handleInputChange(setContractForm)} placeholder="Valor Total" className="w-full border p-2 rounded" />
                 </div>
               </div>
