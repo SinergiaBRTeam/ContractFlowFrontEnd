@@ -10,6 +10,8 @@ import { ContractSimpleDto, AttachmentDto, SupplierDto, OrgUnitDto, CreateContra
 export default function CadastrarPage() {
   const [activeTab, setActiveTab] = useState<"contract" | "document" | "supplier" | "orgUnit">("contract")
 
+  const [demoMode, setDemoMode] = useState(false)
+
   // --- Estados Gerais ---
   const [suppliers, setSuppliers] = useState<SupplierDto[]>([])
   const [orgUnits, setOrgUnits] = useState<OrgUnitDto[]>([])
@@ -60,6 +62,14 @@ export default function CadastrarPage() {
       }
     } catch (error) {
       console.error("Erro ao carregar dados:", error)
+      setDemoMode(true)
+      const mockSup = [{ id: "sup-1", corporateName: "Fornecedor Demo", cnpj: "00.000.000/0001-00", active: true } as SupplierDto]
+      const mockOrg = [{ id: "org-1", name: "Unidade Demo", code: "UD" } as OrgUnitDto]
+      const mockContracts = [{ id: "demo-1", officialNumber: "DEMO-001/2024", status: "Active", isDeleted: false } as ContractSimpleDto]
+      setSuppliers(mockSup)
+      setOrgUnits(mockOrg)
+      setContracts(mockContracts)
+      setSelectedContractId("demo-1")
     }
   }
 
@@ -76,6 +86,7 @@ export default function CadastrarPage() {
 
   // --- Submits ---
   const submitForm = async (url: string, body: any, successMsg: string, clearForm: () => void) => {
+    if (demoMode) { toast.warning("Disponível apenas com o backend ativo."); return; }
     setIsLoading(true)
     try {
       const res = await fetch(url, {
@@ -128,7 +139,8 @@ export default function CadastrarPage() {
 
   // --- Deletes ---
   const handleDelete = async (url: string) => {
-    // Podemos usar um toast com promessa ou confirmação customizada no futuro, 
+    if (demoMode) { toast.warning("Disponível apenas com o backend ativo."); return; }
+    // Podemos usar um toast com promessa ou confirmação customizada no futuro,
     // mas por enquanto o confirm nativo é seguro para deleção crítica.
     if (!confirm("Tem certeza que deseja excluir?")) return
     
@@ -148,6 +160,7 @@ export default function CadastrarPage() {
         toast.warning("Selecione um contrato e um arquivo.");
         return;
     }
+    if (demoMode) { toast.warning("Upload real disponível apenas com backend."); return; }
 
     setIsLoading(true)
     const formData = new FormData()
@@ -183,6 +196,7 @@ export default function CadastrarPage() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-primary mb-2">Central de Cadastros</h1>
           <p className="text-muted-foreground">Gerencie contratos, documentos e tabelas auxiliares</p>
+          {demoMode && <p className="mt-2 text-xs text-amber-600">Modo demonstração ativo por falta de conexão com o backend.</p>}
         </div>
 
         {/* Navegação de Abas */}

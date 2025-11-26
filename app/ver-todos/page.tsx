@@ -24,6 +24,12 @@ export default function VerTodos() {
         }
       } catch (error) {
         console.error("Erro:", error);
+        const mock = [
+          { id: "demo-1", officialNumber: "DEMO-001/2024", status: "Active", isDeleted: false },
+          { id: "demo-2", officialNumber: "DEMO-002/2024", status: "Suspended", isDeleted: false },
+        ] as ContractSimpleDto[];
+        setContracts(mock);
+        setFiltered(mock);
       } finally {
         setLoading(false);
       }

@@ -57,6 +57,13 @@ export default function Home() {
 
       } catch (error) {
         console.error("Erro ao carregar dashboard:", error);
+        // Dados de demonstração quando o backend não estiver acessível
+        const fallbackContracts: Contract[] = [
+          { id: "0001", status: "Active", company: "Fornecedor Mock", unit: "Unidade A", value: "R$ 10.000", date: "Recente" },
+          { id: "0002", status: "Active", company: "Fornecedor Demo", unit: "Unidade B", value: "R$ 5.000", date: "Recente" },
+        ];
+        setContracts(fallbackContracts);
+        setStats({ active: 2, overdue: 1, total: 5 });
       }
     };
 
