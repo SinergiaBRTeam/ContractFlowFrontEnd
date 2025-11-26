@@ -56,7 +56,7 @@ export default function ContratosPage() {
   // Forms
   const [showObliForm, setShowObliForm] = useState(false);
   const [newObligation, setNewObligation] = useState<CreateObligationRequest>({ clauseRef: "", description: "", dueDate: "", status: "Pendente" });
-  const [newDeliverable, setNewDeliverable] = useState<CreateDeliverableRequest>({ expectedDate: "", quantity: 0, unit: "" });
+  const [newDeliverable, setNewDeliverable] = useState<CreateDeliverableRequest>({ expectedDate: "", quantity: 1, unit: "" });
   const [newNonCompliance, setNewNonCompliance] = useState<RegisterNonComplianceRequest>({ reason: "", severity: "Baixo" });
   const [newPenalty, setNewPenalty] = useState<ApplyPenaltyRequest>({ type: "Multa", legalBasis: "", amount: 0 });
   
@@ -84,7 +84,7 @@ export default function ContratosPage() {
     } catch (error) { console.error(error); }
   };
 
-const fetchAttachments = async () => {
+  const fetchAttachments = async () => {
     if (!selectedContractId) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/contracts/${selectedContractId}/attachments`);
@@ -139,17 +139,19 @@ const fetchAttachments = async () => {
     setFilteredContracts(allContracts.filter(c => c.officialNumber.toLowerCase().includes(searchTerm.toLowerCase())));
   }, [searchTerm, allContracts]);
 
-  useEffect(() => {
-    if (activeTab === "details" && selectedContractId) { fetchDetails(); setDetailsTab("info"); }
-  }, [activeTab, selectedContractId]);
+  const toIsoOrNull = (value?: string | null) => value ? new Date(value).toISOString() : null;
 
   const handleAddObligation = async () => {
     if (!selectedContractId) return;
     try {
+      const payload: CreateObligationRequest = {
+        ...newObligation,
+        dueDate: toIsoOrNull(newObligation.dueDate),
+      };
       const res = await fetch(`${API_BASE_URL}/api/contracts/${selectedContractId}/obligations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newObligation)
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error("Erro ao adicionar");
       setShowObliForm(false);
@@ -169,15 +171,24 @@ const fetchAttachments = async () => {
   };
 
   const handleCreateDeliverable = async () => {
-    if (!selectedObligationId) return;
+    if (!selectedObligationId || !newDeliverable.expectedDate) {
+      alert("Preencha a data prevista antes de salvar o entregável.");
+      return;
+    }
     try {
+      const payload: CreateDeliverableRequest = {
+        ...newDeliverable,
+        expectedDate: new Date(newDeliverable.expectedDate).toISOString(),
+        unit: newDeliverable.unit || null,
+      };
       const res = await fetch(`${API_BASE_URL}/api/obligations/${selectedObligationId}/deliverables`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newDeliverable)
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error();
       setActiveModal(null);
+      setNewDeliverable({ expectedDate: "", quantity: 1, unit: "" });
       fetchDetails();
       alert("Entregável criado!");
     } catch { alert("Erro ao criar entregável"); }
@@ -199,13 +210,18 @@ const fetchAttachments = async () => {
   const handleRegisterNonCompliance = async () => {
     if (!selectedObligationId) return;
     try {
+      const payload: RegisterNonComplianceRequest = {
+        reason: newNonCompliance.reason || null,
+        severity: newNonCompliance.severity || null,
+      };
       const res = await fetch(`${API_BASE_URL}/api/obligations/${selectedObligationId}/noncompliances`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newNonCompliance)
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error();
       setActiveModal(null);
+      setNewNonCompliance({ reason: "", severity: "Baixo" });
       fetchDetails();
       alert("Não conformidade registrada!");
     } catch { alert("Erro ao registrar"); }
@@ -214,13 +230,19 @@ const fetchAttachments = async () => {
   const handleApplyPenalty = async () => {
     if (!selectedNcId) return;
     try {
+      const payload: ApplyPenaltyRequest = {
+        type: newPenalty.type || null,
+        legalBasis: newPenalty.legalBasis || null,
+        amount: newPenalty.amount ?? null,
+      };
       const res = await fetch(`${API_BASE_URL}/api/noncompliances/${selectedNcId}/penalties`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newPenalty)
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error();
       setActiveModal(null);
+      setNewPenalty({ type: "Multa", legalBasis: "", amount: 0 });
       fetchDetails();
       alert("Penalidade aplicada!");
     } catch { alert("Erro ao aplicar penalidade"); }
@@ -229,17 +251,22 @@ const fetchAttachments = async () => {
   const handleRegisterInspection = async () => {
     if (!selectedDeliverableId) return;
     try {
+      const payload: CreateInspectionRequest = {
+        ...newInspection,
+        date: newInspection.date ? new Date(newInspection.date).toISOString() : new Date().toISOString(),
+        inspector: newInspection.inspector || null,
+        notes: newInspection.notes || null,
+      };
       const res = await fetch(`${API_BASE_URL}/api/deliverables/${selectedDeliverableId}/inspections`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            ...newInspection,
-            date: newInspection.date || new Date().toISOString()
-        })
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error();
       setActiveModal(null);
       setNewInspection({ date: "", inspector: "", notes: "" });
+      fetchDetails();
+      fetchInspections(selectedDeliverableId);
       alert("Inspeção registrada!");
     } catch { alert("Erro ao registrar inspeção."); }
   };
@@ -529,9 +556,9 @@ const fetchAttachments = async () => {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-xl w-96">
               <h3 className="font-bold mb-4">Novo Entregável</h3>
-              <input type="date" className="w-full border p-2 rounded mb-2" onChange={e => setNewDeliverable({...newDeliverable, expectedDate: e.target.value})} />
-              <input type="number" placeholder="Quantidade" className="w-full border p-2 rounded mb-2" onChange={e => setNewDeliverable({...newDeliverable, quantity: Number(e.target.value)})} />
-              <input type="text" placeholder="Unidade (ex: Relatório, Km)" className="w-full border p-2 rounded mb-4" onChange={e => setNewDeliverable({...newDeliverable, unit: e.target.value})} />
+              <input type="date" value={newDeliverable.expectedDate as string} className="w-full border p-2 rounded mb-2" onChange={e => setNewDeliverable({...newDeliverable, expectedDate: e.target.value})} />
+              <input type="number" value={newDeliverable.quantity} placeholder="Quantidade" className="w-full border p-2 rounded mb-2" onChange={e => setNewDeliverable({...newDeliverable, quantity: Number(e.target.value)})} />
+              <input type="text" value={newDeliverable.unit ?? ""} placeholder="Unidade (ex: Relatório, Km)" className="w-full border p-2 rounded mb-4" onChange={e => setNewDeliverable({...newDeliverable, unit: e.target.value})} />
               <div className="flex justify-end gap-2">
                 <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-gray-500">Cancelar</button>
                 <button onClick={handleCreateDeliverable} className="px-4 py-2 bg-primary text-white rounded">Salvar</button>
