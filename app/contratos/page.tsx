@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import Sidebar from "@/components/sidebar"
 import {Download, FileText, Camera} from "lucide-react"
-import { Search, Eye, Trash2, Plus, CheckSquare, AlertTriangle, Scale, ClipboardCheck, UploadCloud, CheckCircle } from "lucide-react"
+import { Search, Eye, Trash2, Plus, AlertTriangle, Scale, ClipboardCheck, UploadCloud, CheckCircle } from "lucide-react"
 import { API_BASE_URL } from "@/lib/config"
+import { toast } from "sonner"
 import {
   ContractSimpleDto, ContractDetailsDto, CreateObligationRequest,
   CreateDeliverableRequest, RegisterNonComplianceRequest, ApplyPenaltyRequest,
@@ -155,7 +156,7 @@ export default function ContratosPage() {
 
   const handleDownloadAttachment = (id: string, fileName: string) => {
       if (demoMode) {
-        alert("Download simulado em modo demonstração.");
+        toast.info(`Download simulado de "${fileName}" em modo demonstração.`);
         return;
       }
       window.open(`${API_BASE_URL}/api/attachments/${id}/download`, '_blank');
@@ -210,7 +211,7 @@ export default function ContratosPage() {
   const toIsoOrNull = (value?: string | null) => value ? new Date(value).toISOString() : null;
 
   const handleAddObligation = async () => {
-    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
+    if (demoMode) { toast.warning("Disponível apenas com o backend ativo."); return; }
     if (!selectedContractId) return;
     try {
       const payload: CreateObligationRequest = {
@@ -226,24 +227,24 @@ export default function ContratosPage() {
       setShowObliForm(false);
       setNewObligation({ clauseRef: "", description: "", dueDate: "", status: "Pendente" });
       fetchDetails();
-      alert("Obrigação adicionada!");
-    } catch (e) { alert("Erro ao salvar obrigação."); }
+      toast.success("Obrigação adicionada!");
+    } catch (e) { toast.error("Erro ao salvar obrigação."); }
   };
 
   const handleDeleteObligation = async (id: string) => {
-    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
-    if(!confirm("Excluir obrigação?")) return;
+    if (demoMode) { toast.warning("Disponível apenas com o backend ativo."); return; }
     try {
       const res = await fetch(`${API_BASE_URL}/api/obligations/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Erro");
       fetchDetails();
-    } catch (e) { alert("Erro ao excluir."); }
+      toast.success("Obrigação excluída.");
+    } catch (e) { toast.error("Erro ao excluir."); }
   };
 
   const handleCreateDeliverable = async () => {
-    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
+    if (demoMode) { toast.warning("Disponível apenas com o backend ativo."); return; }
     if (!selectedObligationId || !newDeliverable.expectedDate) {
-      alert("Preencha a data prevista antes de salvar o entregável.");
+      toast.warning("Preencha a data prevista antes de salvar o entregável.");
       return;
     }
     try {
@@ -261,13 +262,12 @@ export default function ContratosPage() {
       setActiveModal(null);
       setNewDeliverable({ expectedDate: "", quantity: 1, unit: "" });
       fetchDetails();
-      alert("Entregável criado!");
-    } catch { alert("Erro ao criar entregável"); }
+      toast.success("Entregável criado!");
+    } catch { toast.error("Erro ao criar entregável"); }
   };
 
   const handleMarkDelivered = async (deliverableId: string) => {
-    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
-    if (!confirm("Confirmar entrega realizada hoje?")) return;
+    if (demoMode) { toast.warning("Disponível apenas com o backend ativo."); return; }
     try {
       const res = await fetch(`${API_BASE_URL}/api/deliverables/${deliverableId}/delivered`, {
         method: "PUT",
@@ -276,11 +276,12 @@ export default function ContratosPage() {
       });
       if (!res.ok) throw new Error();
       fetchDetails();
-    } catch { alert("Erro ao marcar entrega"); }
+      toast.success("Entrega registrada!");
+    } catch { toast.error("Erro ao marcar entrega"); }
   };
 
   const handleRegisterNonCompliance = async () => {
-    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
+    if (demoMode) { toast.warning("Disponível apenas com o backend ativo."); return; }
     if (!selectedObligationId) return;
     try {
       const payload: RegisterNonComplianceRequest = {
@@ -296,12 +297,12 @@ export default function ContratosPage() {
       setActiveModal(null);
       setNewNonCompliance({ reason: "", severity: "Baixo" });
       fetchDetails();
-      alert("Não conformidade registrada!");
-    } catch { alert("Erro ao registrar"); }
+      toast.success("Não conformidade registrada!");
+    } catch { toast.error("Erro ao registrar"); }
   };
 
   const handleApplyPenalty = async () => {
-    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
+    if (demoMode) { toast.warning("Disponível apenas com o backend ativo."); return; }
     if (!selectedNcId) return;
     try {
       const payload: ApplyPenaltyRequest = {
@@ -318,12 +319,12 @@ export default function ContratosPage() {
       setActiveModal(null);
       setNewPenalty({ type: "Multa", legalBasis: "", amount: 0 });
       fetchDetails();
-      alert("Penalidade aplicada!");
-    } catch { alert("Erro ao aplicar penalidade"); }
+      toast.success("Penalidade aplicada!");
+    } catch { toast.error("Erro ao aplicar penalidade"); }
   };
 
   const handleRegisterInspection = async () => {
-    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
+    if (demoMode) { toast.warning("Disponível apenas com o backend ativo."); return; }
     if (!selectedDeliverableId) return;
     try {
       const payload: CreateInspectionRequest = {
@@ -342,12 +343,12 @@ export default function ContratosPage() {
       setNewInspection({ date: "", inspector: "", notes: "" });
       fetchDetails();
       fetchInspections(selectedDeliverableId);
-      alert("Inspeção registrada!");
-    } catch { alert("Erro ao registrar inspeção."); }
+      toast.success("Inspeção registrada!");
+    } catch { toast.error("Erro ao registrar inspeção."); }
   };
 
   const handleUploadEvidence = async () => {
-    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
+    if (demoMode) { toast.warning("Disponível apenas com o backend ativo."); return; }
     if (!selectedDeliverableId || !evidenceFile) return;
     const formData = new FormData();
     formData.append("File", evidenceFile);
@@ -361,8 +362,8 @@ export default function ContratosPage() {
       if (!res.ok) throw new Error();
       setActiveModal(null);
       setEvidenceFile(null);
-      alert("Evidência enviada!");
-    } catch { alert("Erro no upload de evidência."); }
+      toast.success("Evidência enviada!");
+    } catch { toast.error("Erro no upload de evidência."); }
   };
 
   return (
@@ -580,7 +581,7 @@ export default function ContratosPage() {
                                               👤 {ins.inspector}
                                             </span>
                                           </div>
-                                          <p className="text-gray-600 text-xs italic">"{ins.notes || "Sem observações registradas."}"</p>
+                                          <p className="text-gray-600 text-xs italic">“{ins.notes || "Sem observações registradas."}”</p>
                                         </div>
                                       ))}
                                     </div>

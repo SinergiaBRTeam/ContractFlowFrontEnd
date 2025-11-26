@@ -1,7 +1,7 @@
 "use client"
 
 import Sidebar from "@/components/sidebar"
-import { Calendar, Clock, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react"
+import { Calendar, Clock, AlertCircle, CheckCircle2, RefreshCw, type LucideIcon } from "lucide-react"
 import { useState, useEffect } from "react"
 import { API_BASE_URL } from "@/lib/config"
 import { AlertDto, ContractSimpleDto } from "@/lib/api-types"
@@ -25,6 +25,8 @@ export default function AgendaPrazosPage() {
 
   const fetchData = async () => {
     setLoading(true)
+    setEvents([])
+    setStats({ next7: 0, next30: 0, overdue: 0, done: 0 })
     try {
       // 1. Busca Alertas e Contratos em paralelo
       const [alertsRes, contractsRes] = await Promise.all([
@@ -138,7 +140,7 @@ export default function AgendaPrazosPage() {
               toast.success("Verificação executada! Atualizando...");
               fetchData();
           }
-      } catch(e) {
+      } catch {
           toast.error("Erro ao rodar verificação.");
       }
   }
@@ -208,7 +210,14 @@ export default function AgendaPrazosPage() {
   )
 }
 
-function StatCard({ title, value, icon: Icon, color }: any) {
+interface StatCardProps {
+    title: string;
+    value: number;
+    icon: LucideIcon;
+    color: string;
+}
+
+function StatCard({ title, value, icon: Icon, color }: StatCardProps) {
     return (
         <div className="bg-white rounded-2xl shadow-sm p-6 flex items-center justify-between">
             <div>

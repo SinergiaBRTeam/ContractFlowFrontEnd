@@ -9,7 +9,6 @@ export default function Sidebar() {
   const menuItems = [
     { label: "Dashboard", icon: "📊", href: "/" },
     { label: "Contratos", icon: "📄", href: "/contratos" },
-    { label: "Relatórios", icon: "📄", href: "/relatorios" },
     { label: "Cadastrar Docs", icon: "📋", href: "/cadastrar" },
     { label: "Agenda de Prazos", icon: "📅", href: "/agenda" },
     { label: "Painel de Riscos", icon: "⚠️", href: "/riscos" },
