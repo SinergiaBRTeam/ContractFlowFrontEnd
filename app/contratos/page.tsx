@@ -206,7 +206,10 @@ export default function ContratosPage() {
   useEffect(() => {
     if (!contractDetails?.obligations?.length) return;
     if (activeModal === "deliverable" || activeModal === "noncompliance") {
-      setSelectedObligationId((current) => current || contractDetails.obligations[0].id);
+      setSelectedObligationId((current) => {
+        const exists = contractDetails.obligations.some(ob => ob.id === current);
+        return exists ? current : contractDetails.obligations[0].id;
+      });
     }
   }, [activeModal, contractDetails]);
 
@@ -250,15 +253,43 @@ export default function ContratosPage() {
 
   const handleCreateDeliverable = async () => {
     if (demoMode) { toast.warning("Disponível apenas com o backend ativo."); return; }
-    if (!selectedObligationId || !newDeliverable.expectedDate) {
+    if (!selectedObligationId) {
+      toast.warning("Selecione uma obrigação antes de salvar o entregável.");
+      return;
+    }
+
+    if (!contractDetails?.obligations?.length) {
+      toast.error("Nenhuma obrigação disponível para associar o entregável.");
+      return;
+    }
+
+    if (!newDeliverable.expectedDate) {
       toast.warning("Preencha a data prevista antes de salvar o entregável.");
       return;
     }
+
+    if (!newDeliverable.unit || !newDeliverable.unit.trim()) {
+      toast.warning("Informe a unidade do entregável (ex: Relatório, Km).");
+      return;
+    }
+
+    const quantityNumber = Number(newDeliverable.quantity);
+    if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) {
+      toast.warning("Informe uma quantidade válida (maior que zero).");
+      return;
+    }
+
+    const parsedDate = new Date(newDeliverable.expectedDate);
+    if (isNaN(parsedDate.getTime())) {
+      toast.warning("Data prevista inválida.");
+      return;
+    }
+
     try {
       const payload: CreateDeliverableRequest = {
-        expectedDate: new Date(newDeliverable.expectedDate).toISOString(),
-        quantity: Number(newDeliverable.quantity),
-        ...(newDeliverable.unit ? { unit: newDeliverable.unit } : {}),
+        expectedDate: parsedDate.toISOString(),
+        quantity: quantityNumber,
+        unit: newDeliverable.unit.trim(),
       };
       const res = await fetch(`${API_BASE_URL}/api/obligations/${selectedObligationId}/deliverables`, {
         method: "POST",
@@ -289,11 +320,32 @@ export default function ContratosPage() {
 
   const handleRegisterNonCompliance = async () => {
     if (demoMode) { toast.warning("Disponível apenas com o backend ativo."); return; }
-    if (!selectedObligationId) return;
+    if (!selectedObligationId) {
+      toast.warning("Selecione uma obrigação para reportar a falha.");
+      return;
+    }
+
+    if (!contractDetails?.obligations?.length) {
+      toast.error("Nenhuma obrigação disponível para reportar falhas.");
+      return;
+    }
+
+    if (!newNonCompliance.reason || !newNonCompliance.reason.trim()) {
+      toast.warning("Informe o motivo da falha.");
+      return;
+    }
+
+    if (!newNonCompliance.severity || !newNonCompliance.severity.trim()) {
+      toast.warning("Informe a severidade da falha.");
+      return;
+    }
+
+    const reason = newNonCompliance.reason.trim();
+    const severity = newNonCompliance.severity.trim();
     try {
       const payload: RegisterNonComplianceRequest = {
-        reason: newNonCompliance.reason || null,
-        severity: newNonCompliance.severity || null,
+        reason,
+        severity,
       };
       const res = await fetch(`${API_BASE_URL}/api/obligations/${selectedObligationId}/noncompliances`, {
         method: "POST",
@@ -651,9 +703,26 @@ export default function ContratosPage() {
                   </option>
                 ))}
               </select>
-              <input type="date" value={newDeliverable.expectedDate as string} className="w-full border p-2 rounded mb-2" onChange={e => setNewDeliverable({...newDeliverable, expectedDate: e.target.value})} />
-              <input type="number" value={newDeliverable.quantity} placeholder="Quantidade" className="w-full border p-2 rounded mb-2" onChange={e => setNewDeliverable({...newDeliverable, quantity: Number(e.target.value)})} />
-              <input type="text" value={newDeliverable.unit ?? ""} placeholder="Unidade (ex: Relatório, Km)" className="w-full border p-2 rounded mb-4" onChange={e => setNewDeliverable({...newDeliverable, unit: e.target.value})} />
+              <input
+                type="date"
+                value={newDeliverable.expectedDate as string}
+                className="w-full border p-2 rounded mb-2"
+                onChange={e => setNewDeliverable({...newDeliverable, expectedDate: e.target.value})}
+              />
+              <input
+                type="number"
+                value={Number.isFinite(newDeliverable.quantity) ? newDeliverable.quantity : ""}
+                placeholder="Quantidade"
+                className="w-full border p-2 rounded mb-2"
+                onChange={e => setNewDeliverable({...newDeliverable, quantity: e.target.value === "" ? NaN : Number(e.target.value)})}
+              />
+              <input
+                type="text"
+                value={newDeliverable.unit ?? ""}
+                placeholder="Unidade (ex: Relatório, Km)"
+                className="w-full border p-2 rounded mb-4"
+                onChange={e => setNewDeliverable({...newDeliverable, unit: e.target.value})}
+              />
               <div className="flex justify-end gap-2">
                 <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-gray-500">Cancelar</button>
                 <button onClick={handleCreateDeliverable} className="px-4 py-2 bg-primary text-white rounded">Salvar</button>
@@ -678,8 +747,18 @@ export default function ContratosPage() {
                   </option>
                 ))}
               </select>
-              <input type="text" placeholder="Motivo" className="w-full border p-2 rounded mb-2" onChange={e => setNewNonCompliance({...newNonCompliance, reason: e.target.value})} />
-              <select className="w-full border p-2 rounded mb-4" onChange={e => setNewNonCompliance({...newNonCompliance, severity: e.target.value})}>
+              <input
+                type="text"
+                placeholder="Motivo"
+                className="w-full border p-2 rounded mb-2"
+                value={newNonCompliance.reason ?? ""}
+                onChange={e => setNewNonCompliance({...newNonCompliance, reason: e.target.value})}
+              />
+              <select
+                className="w-full border p-2 rounded mb-4"
+                value={newNonCompliance.severity ?? ""}
+                onChange={e => setNewNonCompliance({...newNonCompliance, severity: e.target.value})}
+              >
                 <option value="Baixo">Baixo</option><option value="Médio">Médio</option><option value="Alto">Alto</option>
               </select>
               <div className="flex justify-end gap-2">
