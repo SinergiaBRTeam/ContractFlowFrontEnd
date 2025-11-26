@@ -1,10 +1,10 @@
 "use client"
 
 import Sidebar from "@/components/sidebar"
-import { AlertTriangle, TrendingUp, Shield, AlertCircle, FileText } from "lucide-react"
-import { useState, useEffect } from "react"
+import { AlertTriangle, TrendingUp, Shield, AlertCircle, FileText, Filter, RefreshCw } from "lucide-react"
+import { useState, useEffect, useMemo } from "react"
 import { API_BASE_URL } from "@/lib/config"
-import { PenaltyReportDto, ContractSimpleDto } from "@/lib/api-types"
+import { PenaltyReportDto, ContractSimpleDto, DueDeliverableReportDto } from "@/lib/api-types"
 import { toast } from "sonner"
 
 interface RiskItem {
@@ -16,69 +16,109 @@ interface RiskItem {
   description: string;
   date: string;
   value: number | null;
+  source: "penalty" | "deliverable";
 }
 
 export default function PainelRiscosPage() {
   const [risks, setRisks] = useState<RiskItem[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ high: 0, medium: 0, low: 0 });
+  const [severityFilter, setSeverityFilter] = useState<"Todos" | "Alto" | "Médio" | "Baixo">("Todos");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const fetchRisks = async () => {
       setLoading(true)
       try {
-        // Busca Penalidades e Contratos para cruzar dados
-        const [penaltiesRes, contractsRes] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/reports/penalties`),
-            fetch(`${API_BASE_URL}/api/contracts`)
-        ]);
+        const [penaltiesRes, dueDeliverablesRes, contractsRes] = await Promise.allSettled([
+          fetch(`${API_BASE_URL}/api/reports/penalties`),
+          fetch(`${API_BASE_URL}/api/reports/due-deliverables`),
+          fetch(`${API_BASE_URL}/api/contracts`),
+        ])
 
-        if(!penaltiesRes.ok || !contractsRes.ok) throw new Error("Falha ao carregar dados");
+        const contractsData: ContractSimpleDto[] = contractsRes.status === "fulfilled" && contractsRes.value.ok
+          ? await contractsRes.value.json()
+          : []
 
-        const penaltiesData: PenaltyReportDto[] = await penaltiesRes.json();
-        const contractsData: ContractSimpleDto[] = await contractsRes.json();
-        
-        // Mapa de Contratos
-        const contractMap = new Map(contractsData.map(c => [c.id, c.officialNumber]));
+        const contractMap = new Map(contractsData.map((c) => [c.id, c.officialNumber]))
 
-        let high = 0, medium = 0, low = 0;
-        
-        const mappedRisks: RiskItem[] = penaltiesData.map(r => {
-          // Lógica de Severidade baseada na string do backend
-          const sev = r.severity.toLowerCase();
-          let level = "Baixo";
-          let color = "bg-green-100 text-green-800 border-green-200";
+        let high = 0,
+          medium = 0,
+          low = 0
 
-          if (sev.includes("alto") || sev.includes("high") || sev.includes("grave")) {
-            level = "Alto";
-            color = "bg-red-100 text-red-800 border-red-200";
-            high++;
-          } else if (sev.includes("médio") || sev.includes("medium")) {
-            level = "Médio";
-            color = "bg-yellow-100 text-yellow-800 border-yellow-200";
-            medium++;
-          } else {
-            low++;
-          }
+        const mappedRisks: RiskItem[] = []
 
-          return {
-            id: r.penaltyId,
-            type: r.type, // Multa, Advertência...
-            contractName: contractMap.get(r.contractId) || `ID: ${r.contractId.substring(0, 8)}...`,
-            level: level,
-            levelColor: color,
-            description: r.reason,
-            date: new Date(r.registeredAt).toLocaleDateString('pt-BR'),
-            value: r.amount || 0
-          };
-        });
-        
-        setRisks(mappedRisks);
-        setStats({ high, medium, low });
+        if (penaltiesRes.status === "fulfilled" && penaltiesRes.value.ok) {
+          const penaltiesData: PenaltyReportDto[] = await penaltiesRes.value.json()
+          penaltiesData.forEach((r) => {
+            const { level, color } = mapSeverityFromString(r.severity)
+            if (level === "Alto") high++
+            if (level === "Médio") medium++
+            if (level === "Baixo") low++
 
+            mappedRisks.push({
+              id: r.penaltyId,
+              type: r.type,
+              contractName: contractMap.get(r.contractId) || `ID: ${r.contractId.substring(0, 8)}...`,
+              level,
+              levelColor: color,
+              description: r.reason,
+              date: new Date(r.registeredAt).toLocaleDateString("pt-BR"),
+              value: r.amount || 0,
+              source: "penalty",
+            })
+          })
+        } else {
+          toast.warning("Não foi possível carregar penalidades do backend.")
+        }
+
+        if (dueDeliverablesRes.status === "fulfilled" && dueDeliverablesRes.value.ok) {
+          const dueDeliverables: DueDeliverableReportDto[] = await dueDeliverablesRes.value.json()
+          dueDeliverables.forEach((item) => {
+            const { level, color } = mapSeverityFromDelay(item.daysOverdue)
+            if (level === "Alto") high++
+            if (level === "Médio") medium++
+            if (level === "Baixo") low++
+
+            mappedRisks.push({
+              id: item.deliverableId,
+              type: "Entrega Atrasada",
+              contractName: item.officialNumber || contractMap.get(item.contractId) || "Contrato não identificado",
+              level,
+              levelColor: color,
+              description: `${item.description} • ${item.daysOverdue} dia(s) em atraso`,
+              date: new Date(item.expectedDate).toLocaleDateString("pt-BR"),
+              value: null,
+              source: "deliverable",
+            })
+          })
+        } else {
+          toast.warning("Não foi possível carregar entregas em risco do backend.")
+        }
+
+        if (mappedRisks.length === 0) {
+          toast.error("Nenhum dado recebido do backend. Mostrando exemplo.")
+          mappedRisks.push({
+            id: "mock-risk",
+            type: "Multa",
+            contractName: "DEMO-001/2024",
+            level: "Alto",
+            levelColor: "bg-red-100 text-red-800 border-red-200",
+            description: "Atraso em entrega crítica",
+            date: new Date().toLocaleDateString("pt-BR"),
+            value: 5000,
+            source: "penalty",
+          })
+          high = 1
+          medium = 0
+          low = 0
+        }
+
+        setRisks(mappedRisks)
+        setStats({ high, medium, low })
       } catch (error) {
-        console.error(error);
-        toast.error("Erro ao carregar riscos. Mostrando dados simulados.");
+        console.error(error)
+        toast.error("Erro ao carregar riscos. Mostrando dados simulados.")
         const mockRisks: RiskItem[] = [
           {
             id: "risk-1",
@@ -87,29 +127,84 @@ export default function PainelRiscosPage() {
             level: "Alto",
             levelColor: "bg-red-100 text-red-800 border-red-200",
             description: "Atraso em entrega crítica",
-            date: new Date().toLocaleDateString('pt-BR'),
+            date: new Date().toLocaleDateString("pt-BR"),
             value: 5000,
+            source: "penalty",
           },
-        ];
-        setRisks(mockRisks);
-        setStats({ high: 1, medium: 0, low: 0 });
+        ]
+        setRisks(mockRisks)
+        setStats({ high: 1, medium: 0, low: 0 })
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-    
-    fetchRisks();
-  }, []);
+    }
+
+    fetchRisks()
+  }, [])
 
   const totalRisks = stats.high + stats.medium + stats.low;
+
+  const filteredRisks = useMemo(() => {
+    const list = severityFilter === "Todos" ? risks : risks.filter((r) => r.level === severityFilter)
+    const searched = searchTerm.trim()
+    const normalized = searched.toLowerCase()
+    const afterSearch = normalized
+      ? list.filter(
+          (r) =>
+            r.contractName.toLowerCase().includes(normalized) ||
+            r.description.toLowerCase().includes(normalized) ||
+            r.type.toLowerCase().includes(normalized),
+        )
+      : list
+
+    const severityOrder: Record<string, number> = { Alto: 0, "Médio": 1, Baixo: 2 }
+    return [...afterSearch].sort((a, b) => severityOrder[a.level] - severityOrder[b.level])
+  }, [risks, severityFilter, searchTerm])
 
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
       <main className="flex-1 overflow-auto p-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-2">Gestão de Riscos</h1>
-          <p className="text-muted-foreground">Monitoramento de penalidades e não conformidades</p>
+        <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-primary mb-2">Gestão de Riscos</h1>
+            <p className="text-muted-foreground">Monitoramento de penalidades e entregas em atraso</p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex items-center gap-2 rounded-xl border px-3 py-2 bg-white">
+              <Filter size={18} className="text-gray-500" />
+              <select
+                value={severityFilter}
+                onChange={(event) => setSeverityFilter(event.target.value as any)}
+                className="outline-none bg-transparent text-sm text-gray-700"
+              >
+                <option value="Todos">Todos os riscos</option>
+                <option value="Alto">Apenas altos</option>
+                <option value="Médio">Apenas médios</option>
+                <option value="Baixo">Apenas baixos</option>
+              </select>
+            </div>
+
+            <input
+              type="text"
+              placeholder="Buscar por contrato ou motivo"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary bg-white min-w-[260px]"
+            />
+
+            <button
+              onClick={() => {
+                setSeverityFilter("Todos")
+                setSearchTerm("")
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <RefreshCw size={16} />
+              Limpar filtros
+            </button>
+          </div>
         </div>
 
         {/* Cards de Resumo */}
@@ -128,7 +223,7 @@ export default function PainelRiscosPage() {
                     <p className="text-center py-8 text-gray-500">Carregando riscos...</p>
                 ) : (
                     <div className="space-y-4">
-                    {risks.length === 0 ? <p className="text-gray-500">Nenhum risco registrado.</p> : risks.map((risk) => (
+                    {filteredRisks.length === 0 ? <p className="text-gray-500">Nenhum risco encontrado para o filtro.</p> : filteredRisks.map((risk) => (
                         <div key={risk.id} className="border border-gray-100 rounded-xl p-4 hover:border-primary/30 transition-colors bg-gray-50/50">
                             <div className="flex items-start justify-between mb-2">
                                 <div className="flex items-center gap-3">
@@ -145,9 +240,14 @@ export default function PainelRiscosPage() {
                                 </span>
                             </div>
                             <div className="pl-[52px]">
-                                <p className="font-medium text-sm text-gray-700 mb-1">{risk.type}</p>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="font-medium text-sm text-gray-700">{risk.type}</p>
+                                  <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-white border text-gray-500">
+                                    {risk.source === "penalty" ? "Penalidade" : "Entrega"}
+                                  </span>
+                                </div>
                                 <p className="text-sm text-muted-foreground mb-2">{risk.description}</p>
-                                {risk.value > 0 && (
+                                {risk.value && risk.value > 0 && (
                                     <p className="text-xs font-mono text-red-600 bg-red-50 inline-block px-2 py-1 rounded">
                                         Impacto Financeiro: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(risk.value)}
                                     </p>
@@ -198,4 +298,21 @@ function RiskCard({ title, value, icon: Icon, color }: any) {
             <Icon size={32} className={color} />
         </div>
     )
+}
+
+function mapSeverityFromString(severity: string | undefined) {
+  const sev = (severity || "").toLowerCase()
+  if (sev.includes("alto") || sev.includes("high") || sev.includes("grave")) {
+    return { level: "Alto", color: "bg-red-100 text-red-800 border-red-200" }
+  }
+  if (sev.includes("médio") || sev.includes("medio") || sev.includes("medium")) {
+    return { level: "Médio", color: "bg-yellow-100 text-yellow-800 border-yellow-200" }
+  }
+  return { level: "Baixo", color: "bg-green-100 text-green-800 border-green-200" }
+}
+
+function mapSeverityFromDelay(daysOverdue: number) {
+  if (daysOverdue >= 30) return { level: "Alto", color: "bg-red-100 text-red-800 border-red-200" }
+  if (daysOverdue >= 7) return { level: "Médio", color: "bg-yellow-100 text-yellow-800 border-yellow-200" }
+  return { level: "Baixo", color: "bg-green-100 text-green-800 border-green-200" }
 }
