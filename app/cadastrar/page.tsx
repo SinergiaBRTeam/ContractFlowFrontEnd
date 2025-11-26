@@ -5,7 +5,7 @@ import { Upload, FileText, CheckCircle, Plus, Building2, Users, Trash2, FileSign
 import { useState, useEffect, ChangeEvent, FormEvent } from "react"
 import { API_BASE_URL } from "@/lib/config"
 import { toast } from "sonner"
-import { ContractSimpleDto, AttachmentDto, SupplierDto, OrgUnitDto, CreateContractRequest, CreateSupplierRequest, CreateOrgUnitRequest } from "@/lib/api-types"
+import { ContractSimpleDto, AttachmentDto, SupplierDto, OrgUnitDto, CreateContractRequest, CreateSupplierRequest, CreateOrgUnitRequest, ContractModality, ContractType } from "@/lib/api-types"
 
 export default function CadastrarPage() {
   const [activeTab, setActiveTab] = useState<"contract" | "document" | "supplier" | "orgUnit">("contract")
@@ -18,8 +18,16 @@ export default function CadastrarPage() {
 
   // --- Formulários ---
   const [contractForm, setContractForm] = useState<CreateContractRequest>({
-    officialNumber: "", supplierId: "", orgUnitId: "", type: 1, modality: 1,
-    termStart: "", termEnd: "", totalAmount: 0, currency: "BRL", administrativeProcess: ""
+    officialNumber: "",
+    supplierId: "",
+    orgUnitId: "",
+    type: "Servico",
+    modality: "Pregao",
+    termStart: "",
+    termEnd: "",
+    totalAmount: 0,
+    currency: "BRL",
+    administrativeProcess: ""
   })
   
   const [supplierForm, setSupplierForm] = useState<CreateSupplierRequest>({
@@ -62,7 +70,7 @@ export default function CadastrarPage() {
     const { name, value } = e.target
     setter((prev: any) => ({
       ...prev,
-      [name]: name === 'totalAmount' || name === 'type' || name === 'modality' ? Number(value) : value
+      [name]: name === 'totalAmount' ? Number(value) : value
     }))
   }
 
@@ -90,8 +98,21 @@ export default function CadastrarPage() {
 
   const handleContractSubmit = (e: FormEvent) => {
     e.preventDefault()
-    submitForm(`${API_BASE_URL}/api/contracts`, contractForm, "Contrato criado!", () => setContractForm({
-      ...contractForm, officialNumber: "", administrativeProcess: "" // Limpa campos principais
+    const payload: CreateContractRequest = {
+      ...contractForm,
+      termStart: new Date(contractForm.termStart).toISOString(),
+      termEnd: new Date(contractForm.termEnd).toISOString(),
+      officialNumber: contractForm.officialNumber || null,
+      administrativeProcess: contractForm.administrativeProcess || null,
+      currency: contractForm.currency || null,
+    }
+
+    submitForm(`${API_BASE_URL}/api/contracts`, payload, "Contrato criado!", () => setContractForm({
+      ...contractForm,
+      officialNumber: "",
+      administrativeProcess: "",
+      termStart: "",
+      termEnd: "",
     }))
   }
 
@@ -130,7 +151,7 @@ export default function CadastrarPage() {
 
     setIsLoading(true)
     const formData = new FormData()
-    formData.append("file", selectedFile) 
+    formData.append("File", selectedFile)
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/contracts/${selectedContractId}/attachments`, {
@@ -206,11 +227,17 @@ export default function CadastrarPage() {
                 <div className="space-y-4">
                   <h3 className="font-semibold border-b pb-2">Detalhes</h3>
                   <div className="grid grid-cols-2 gap-2">
-                    <select name="type" value={contractForm.type} onChange={handleInputChange(setContractForm)} className="border p-2 rounded">
-                      <option value="1">Serviço</option><option value="2">Obra</option><option value="3">Fornecimento</option>
+                    <select name="type" value={contractForm.type}
+                      onChange={handleInputChange(setContractForm)} className="border p-2 rounded">
+                      {["Servico", "Obra", "Fornecimento", "Locacao", "Outro"].map(option => (
+                        <option key={option} value={option as ContractType}>{option}</option>
+                      ))}
                     </select>
-                    <select name="modality" value={contractForm.modality} onChange={handleInputChange(setContractForm)} className="border p-2 rounded">
-                      <option value="1">Pregão</option><option value="2">Concorrência</option><option value="3">Tomada Preço</option>
+                    <select name="modality" value={contractForm.modality}
+                      onChange={handleInputChange(setContractForm)} className="border p-2 rounded">
+                      {["Pregao", "Concorrencia", "TomadaPreco", "Convite", "Dispensa", "Inexigibilidade", "RDC", "Credenciamento"].map(option => (
+                        <option key={option} value={option as ContractModality}>{option}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-2">

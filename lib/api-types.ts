@@ -22,17 +22,29 @@ export interface OrgUnitDto {
     code?: string;
 }
 
+export type ContractType = "Servico" | "Obra" | "Fornecimento" | "Locacao" | "Outro";
+
+export type ContractModality =
+    | "Pregao"
+    | "Concorrencia"
+    | "TomadaPreco"
+    | "Convite"
+    | "Dispensa"
+    | "Inexigibilidade"
+    | "RDC"
+    | "Credenciamento";
+
 export interface CreateContractRequest {
-    officialNumber: string;
+    officialNumber?: string | null;
     supplierId: string;
     orgUnitId: string;
-    type: number;
-    modality: number;
+    type: ContractType;
+    modality: ContractModality;
     termStart: string;
     termEnd: string;
     totalAmount: number;
-    currency: string;
-    administrativeProcess?: string;
+    currency?: string | null;
+    administrativeProcess?: string | null;
 }
 
 export interface CreateSupplierRequest {
@@ -58,17 +70,17 @@ export interface UpdateOrgUnitRequest {
 }
 
 export interface CreateObligationRequest {
-    clauseRef: string;
-    description: string;
-    dueDate?: string;
-    status?: string;
+    clauseRef?: string | null;
+    description?: string | null;
+    dueDate?: string | null;
+    status?: string | null;
 }
 
 export interface UpdateObligationRequest {
-    clauseRef: string;
-    description: string;
-    dueDate?: string;
-    status: string;
+    clauseRef?: string | null;
+    description?: string | null;
+    dueDate?: string | null;
+    status?: string | null;
 }
 
 export interface PenaltyDto {
@@ -88,7 +100,7 @@ export interface NonComplianceDto {
 
 export interface DeliverableDto {
     id: string;
-    expectedDate: string; 
+    expectedDate: string;
     quantity: number;
     unit: string;
     deliveredAt?: string;
@@ -156,7 +168,7 @@ export interface AttachmentDto {
 export interface CreateDeliverableRequest {
     expectedDate: string;
     quantity: number;
-    unit: string;
+    unit?: string | null;
 }
 
 export interface MarkDeliveredRequest {
@@ -164,14 +176,14 @@ export interface MarkDeliveredRequest {
 }
 
 export interface RegisterNonComplianceRequest {
-    reason: string;
-    severity: string;
+    reason?: string | null;
+    severity?: string | null;
 }
 
 export interface ApplyPenaltyRequest {
-    type: string;
-    legalBasis: string;
-    amount: number;
+    type?: string | null;
+    legalBasis?: string | null;
+    amount?: number | null;
 }
 
 // DTOs para Relatórios
@@ -192,8 +204,8 @@ export interface DashboardStatsDto {
 
 export interface CreateInspectionRequest {
     date: string;
-    inspector: string;
-    notes: string;
+    inspector?: string | null;
+    notes?: string | null;
 }
 
 export interface UpdateInspectionRequest {
