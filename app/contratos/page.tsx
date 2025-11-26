@@ -5,8 +5,8 @@ import Sidebar from "@/components/sidebar"
 import {Download, FileText, Camera} from "lucide-react"
 import { Search, Eye, Trash2, Plus, CheckSquare, AlertTriangle, Scale, ClipboardCheck, UploadCloud, CheckCircle } from "lucide-react"
 import { API_BASE_URL } from "@/lib/config"
-import { 
-  ContractSimpleDto, ContractDetailsDto, CreateObligationRequest, 
+import {
+  ContractSimpleDto, ContractDetailsDto, CreateObligationRequest,
   CreateDeliverableRequest, RegisterNonComplianceRequest, ApplyPenaltyRequest,
   CreateInspectionRequest
 } from "@/lib/api-types"
@@ -38,6 +38,7 @@ export default function ContratosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [allContracts, setAllContracts] = useState<ContractSearchResult[]>([]);
   const [filteredContracts, setFilteredContracts] = useState<ContractSearchResult[]>([]);
+  const [demoMode, setDemoMode] = useState(false);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [contractDetails, setContractDetails] = useState<ContractDetailsDto | null>(null);
   const [detailsTab, setDetailsTab] = useState("info");
@@ -74,8 +75,49 @@ export default function ContratosPage() {
     }
   };
 
+  const demoContractDetails: ContractDetailsDto = {
+    id: "demo-1",
+    officialNumber: "DEMO-001/2024",
+    administrativeProcess: "12345/2024",
+    type: "Servico",
+    modality: "Pregao",
+    status: "Active",
+    termStart: new Date().toISOString(),
+    termEnd: new Date(Date.now() + 1000 * 60 * 60 * 24 * 180).toISOString(),
+    totalAmount: 100000,
+    currency: "BRL",
+    supplierId: "sup-1",
+    supplierName: "Fornecedor Exemplo",
+    supplierCnpj: "00.000.000/0001-00",
+    orgUnitId: "org-1",
+    orgUnitName: "Unidade Modelo",
+    orgUnitCode: "UMD",
+    obligations: [
+      {
+        id: "ob-1",
+        clauseRef: "2.1",
+        description: "Entrega mensal de relatórios",
+        dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 10).toISOString(),
+        status: "Pendente",
+        deliverables: [
+          {
+            id: "dev-1",
+            expectedDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 10).toISOString(),
+            quantity: 1,
+            unit: "Relatório",
+          },
+        ],
+        nonCompliances: [],
+      },
+    ],
+  };
+
   const fetchDetails = async () => {
     if (!selectedContractId) return;
+    if (demoMode) {
+      setContractDetails({ ...demoContractDetails, id: selectedContractId, officialNumber: `DEMO-${selectedContractId}` });
+      return;
+    }
     try {
       const response = await fetch(`${API_BASE_URL}/api/contracts/${selectedContractId}`);
       if (!response.ok) throw new Error("Erro");
@@ -86,6 +128,10 @@ export default function ContratosPage() {
 
   const fetchAttachments = async () => {
     if (!selectedContractId) return;
+    if (demoMode) {
+      setAttachments([{ id: "att-1", fileName: "contrato.pdf", mimeType: "application/pdf" }]);
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE_URL}/api/contracts/${selectedContractId}/attachments`);
       if (res.ok) setAttachments(await res.json());
@@ -93,6 +139,11 @@ export default function ContratosPage() {
   };
 
   const fetchInspections = async (deliverableId: string) => {
+    if (demoMode) {
+      setViewingDeliverableId(deliverableId);
+      setInspectionsList([{ id: "insp-1", date: new Date().toISOString(), inspector: "Fiscal Mock", notes: "Tudo em ordem." }]);
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE_URL}/api/deliverables/${deliverableId}/inspections`);
       if (res.ok) {
@@ -103,6 +154,10 @@ export default function ContratosPage() {
   };
 
   const handleDownloadAttachment = (id: string, fileName: string) => {
+      if (demoMode) {
+        alert("Download simulado em modo demonstração.");
+        return;
+      }
       window.open(`${API_BASE_URL}/api/attachments/${id}/download`, '_blank');
   };
 
@@ -119,6 +174,7 @@ export default function ContratosPage() {
     const fetchContracts = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/api/contracts`);
+        if (!response.ok) throw new Error("erro");
         const data: ContractSimpleDto[] = await response.json();
         const mapped = data.map(c => ({
           id: c.id,
@@ -129,7 +185,19 @@ export default function ContratosPage() {
         }));
         setAllContracts(mapped);
         setFilteredContracts(mapped);
-      } catch (error) { console.error(error); }
+      } catch (error) {
+        console.error(error);
+        setDemoMode(true);
+        const mapped = [
+          { id: "demo-1", officialNumber: "DEMO-001/2024", status: "Active", statusColor: getStatusColor("Active"), company: "Fornecedor Exemplo" },
+          { id: "demo-2", officialNumber: "DEMO-002/2024", status: "Suspended", statusColor: getStatusColor("Suspended"), company: "Fornecedor 2" },
+        ];
+        setAllContracts(mapped);
+        setFilteredContracts(mapped);
+        setContractDetails(demoContractDetails);
+        setAttachments([{ id: "att-1", fileName: "contrato.pdf", mimeType: "application/pdf" }]);
+        setSelectedContractId("demo-1");
+      }
     };
     fetchContracts();
   }, []);
@@ -142,6 +210,7 @@ export default function ContratosPage() {
   const toIsoOrNull = (value?: string | null) => value ? new Date(value).toISOString() : null;
 
   const handleAddObligation = async () => {
+    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
     if (!selectedContractId) return;
     try {
       const payload: CreateObligationRequest = {
@@ -162,6 +231,7 @@ export default function ContratosPage() {
   };
 
   const handleDeleteObligation = async (id: string) => {
+    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
     if(!confirm("Excluir obrigação?")) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/obligations/${id}`, { method: "DELETE" });
@@ -171,6 +241,7 @@ export default function ContratosPage() {
   };
 
   const handleCreateDeliverable = async () => {
+    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
     if (!selectedObligationId || !newDeliverable.expectedDate) {
       alert("Preencha a data prevista antes de salvar o entregável.");
       return;
@@ -195,6 +266,7 @@ export default function ContratosPage() {
   };
 
   const handleMarkDelivered = async (deliverableId: string) => {
+    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
     if (!confirm("Confirmar entrega realizada hoje?")) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/deliverables/${deliverableId}/delivered`, {
@@ -208,6 +280,7 @@ export default function ContratosPage() {
   };
 
   const handleRegisterNonCompliance = async () => {
+    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
     if (!selectedObligationId) return;
     try {
       const payload: RegisterNonComplianceRequest = {
@@ -228,6 +301,7 @@ export default function ContratosPage() {
   };
 
   const handleApplyPenalty = async () => {
+    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
     if (!selectedNcId) return;
     try {
       const payload: ApplyPenaltyRequest = {
@@ -249,6 +323,7 @@ export default function ContratosPage() {
   };
 
   const handleRegisterInspection = async () => {
+    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
     if (!selectedDeliverableId) return;
     try {
       const payload: CreateInspectionRequest = {
@@ -272,6 +347,7 @@ export default function ContratosPage() {
   };
 
   const handleUploadEvidence = async () => {
+    if (demoMode) { alert("Disponível apenas com o backend ativo."); return; }
     if (!selectedDeliverableId || !evidenceFile) return;
     const formData = new FormData();
     formData.append("File", evidenceFile);

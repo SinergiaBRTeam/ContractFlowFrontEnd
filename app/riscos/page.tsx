@@ -78,7 +78,21 @@ export default function PainelRiscosPage() {
 
       } catch (error) {
         console.error(error);
-        toast.error("Erro ao carregar riscos.");
+        toast.error("Erro ao carregar riscos. Mostrando dados simulados.");
+        const mockRisks: RiskItem[] = [
+          {
+            id: "risk-1",
+            type: "Multa",
+            contractName: "DEMO-001/2024",
+            level: "Alto",
+            levelColor: "bg-red-100 text-red-800 border-red-200",
+            description: "Atraso em entrega crítica",
+            date: new Date().toLocaleDateString('pt-BR'),
+            value: 5000,
+          },
+        ];
+        setRisks(mockRisks);
+        setStats({ high: 1, medium: 0, low: 0 });
       } finally {
         setLoading(false);
       }

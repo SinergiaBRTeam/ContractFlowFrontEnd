@@ -34,8 +34,20 @@ useEffect(() => {
             const res = await fetch(`${API_BASE_URL}/api/reports/deliveries-by-orgunit`);
             if(res.ok) setOrgUnitData(await res.json());
         }
-      } catch (e) { 
-        console.error(e); 
+      } catch (e) {
+        console.error(e);
+        // fallback para apresentação
+        if (reportType === "due") {
+          setDueData([
+            { contractId: "demo-1", officialNumber: "DEMO-001/2024", deliverableId: "dev-1", description: "Relatório mensal", expectedDate: new Date().toISOString(), daysOverdue: 5 }
+          ]);
+        } else if (reportType === "status") {
+          setStatusData({ active: 3, suspended: 1, terminated: 0, completed: 2 });
+        } else if (reportType === "supplier") {
+          setSupplierData([{ supplierName: "Fornecedor Mock", totalDeliveries: 12, onTime: 10, late: 2 }]);
+        } else if (reportType === "orgunit") {
+          setOrgUnitData([{ orgUnitName: "Unidade Demo", totalDeliveries: 8 }]);
+        }
       } finally {
         setLoading(false);
       }

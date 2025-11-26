@@ -94,10 +94,34 @@ export default function AgendaPrazosPage() {
       
       setEvents(mappedEvents);
       setStats({ next7, next30, overdue, done: 0 });
-      
+
     } catch (error) {
       console.error("Erro ao buscar agenda:", error);
-      toast.error("Erro ao carregar agenda.");
+      toast.error("Erro ao carregar agenda. Exibindo dados de demonstração.");
+      const mockEvents: EventItem[] = [
+        {
+          id: "demo-1",
+          title: "Entrega de relatório mensal",
+          date: new Date().toLocaleDateString('pt-BR'),
+          time: "09:00",
+          status: "Planejado",
+          statusColor: "bg-blue-100 text-blue-800",
+          daysLeft: 3,
+          contractName: "Contrato Demo 01",
+        },
+        {
+          id: "demo-2",
+          title: "Fiscalização do lote 2",
+          date: new Date(Date.now() + 86400000 * -2).toLocaleDateString('pt-BR'),
+          time: "14:30",
+          status: "Atrasado",
+          statusColor: "bg-red-100 text-red-800",
+          daysLeft: -2,
+          contractName: "Contrato Demo 02",
+        },
+      ];
+      setEvents(mockEvents);
+      setStats({ next7: 1, next30: 1, overdue: 1, done: 0 });
     } finally {
         setLoading(false);
     }
