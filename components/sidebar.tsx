@@ -7,43 +7,44 @@ export default function Sidebar() {
   const pathname = usePathname()
 
   const menuItems = [
-    { label: "Dashboard", icon: "📊", href: "/" },
-    { label: "Contratos", icon: "📄", href: "/contratos" },
-    { label: "Cadastrar Docs", icon: "📋", href: "/cadastrar" },
-    { label: "Agenda de Prazos", icon: "📅", href: "/agenda" },
-    { label: "Painel de Riscos", icon: "⚠️", href: "/riscos" },
+    { label: "Dashboard", href: "/" },
+    { label: "Contratos", href: "/contratos" },
+    { label: "Cadastrar Docs", href: "/cadastrar" },
+    { label: "Agenda de Prazos", href: "/agenda" },
+    { label: "Painel de Riscos", href: "/riscos" },
   ]
 
   return (
-    <aside className="w-48 bg-primary text-primary-foreground flex flex-col">
+    <aside className="w-56 bg-primary text-primary-foreground flex flex-col shadow-lg">
       {/* Logo */}
-      <div className="p-6 border-b border-primary/20">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-green-400 rounded-full flex items-center justify-center">
-            <span className="text-primary font-bold">✓</span>
+      <div className="p-6 border-b border-primary/15">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-primary-foreground/10 rounded-lg flex items-center justify-center border border-primary-foreground/15">
+            <span className="text-base font-semibold text-primary-foreground">CF</span>
           </div>
-          <div>
-            <div className="font-bold text-sm">contract</div>
-            <div className="font-bold text-sm">flow</div>
+          <div className="leading-tight">
+            <div className="font-semibold text-sm tracking-wide uppercase">Contract</div>
+            <div className="font-semibold text-sm tracking-wide uppercase">Flow</div>
           </div>
         </div>
       </div>
 
       {/* Menu Items */}
       <nav className="flex-1 p-4">
-        <ul className="space-y-2">
+        <ul className="space-y-1">
           {menuItems.map((item) => {
             const isActive = pathname === item.href
             return (
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    isActive ? "bg-primary-foreground/20 font-semibold" : "hover:bg-primary-foreground/10"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors border border-transparent ${
+                    isActive
+                      ? "bg-primary-foreground/15 border-primary-foreground/20 text-primary-foreground"
+                      : "hover:bg-primary-foreground/10 text-primary-foreground/80"
                   }`}
                 >
-                  <span className="text-lg">{item.icon}</span>
-                  <span className="text-sm">{item.label}</span>
+                  <span className="text-sm font-medium tracking-wide">{item.label}</span>
                 </Link>
               </li>
             )
