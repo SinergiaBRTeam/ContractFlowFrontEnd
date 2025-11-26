@@ -204,6 +204,13 @@ export default function ContratosPage() {
   }, []);
 
   useEffect(() => {
+    if (!contractDetails?.obligations?.length) return;
+    if (activeModal === "deliverable" || activeModal === "noncompliance") {
+      setSelectedObligationId((current) => current || contractDetails.obligations[0].id);
+    }
+  }, [activeModal, contractDetails]);
+
+  useEffect(() => {
     if (!searchTerm) { setFilteredContracts(allContracts); return; }
     setFilteredContracts(allContracts.filter(c => c.officialNumber.toLowerCase().includes(searchTerm.toLowerCase())));
   }, [searchTerm, allContracts]);
@@ -633,6 +640,17 @@ export default function ContratosPage() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-xl w-96">
               <h3 className="font-bold mb-4">Novo Entregável</h3>
+              <select
+                className="w-full border p-2 rounded mb-2"
+                value={selectedObligationId}
+                onChange={(e) => setSelectedObligationId(e.target.value)}
+              >
+                {contractDetails?.obligations.map((ob) => (
+                  <option key={ob.id} value={ob.id}>
+                    {ob.description}
+                  </option>
+                ))}
+              </select>
               <input type="date" value={newDeliverable.expectedDate as string} className="w-full border p-2 rounded mb-2" onChange={e => setNewDeliverable({...newDeliverable, expectedDate: e.target.value})} />
               <input type="number" value={newDeliverable.quantity} placeholder="Quantidade" className="w-full border p-2 rounded mb-2" onChange={e => setNewDeliverable({...newDeliverable, quantity: Number(e.target.value)})} />
               <input type="text" value={newDeliverable.unit ?? ""} placeholder="Unidade (ex: Relatório, Km)" className="w-full border p-2 rounded mb-4" onChange={e => setNewDeliverable({...newDeliverable, unit: e.target.value})} />
@@ -649,6 +667,17 @@ export default function ContratosPage() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-xl w-96">
               <h3 className="font-bold mb-4">Registrar Falha</h3>
+              <select
+                className="w-full border p-2 rounded mb-2"
+                value={selectedObligationId}
+                onChange={(e) => setSelectedObligationId(e.target.value)}
+              >
+                {contractDetails?.obligations.map((ob) => (
+                  <option key={ob.id} value={ob.id}>
+                    {ob.description}
+                  </option>
+                ))}
+              </select>
               <input type="text" placeholder="Motivo" className="w-full border p-2 rounded mb-2" onChange={e => setNewNonCompliance({...newNonCompliance, reason: e.target.value})} />
               <select className="w-full border p-2 rounded mb-4" onChange={e => setNewNonCompliance({...newNonCompliance, severity: e.target.value})}>
                 <option value="Baixo">Baixo</option><option value="Médio">Médio</option><option value="Alto">Alto</option>
