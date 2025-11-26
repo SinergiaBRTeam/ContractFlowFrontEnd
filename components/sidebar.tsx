@@ -6,12 +6,14 @@ import { usePathname } from "next/navigation"
 export default function Sidebar() {
   const pathname = usePathname()
 
+  const riskPanelEnabled = process.env.NEXT_PUBLIC_ENABLE_RISKS !== "false"
+
   const menuItems = [
     { label: "Dashboard", href: "/" },
     { label: "Contratos", href: "/contratos" },
-    { label: "Cadastrar Docs", href: "/cadastrar" },
+    { label: "Cadastrar Documentos", href: "/cadastrar" },
     { label: "Agenda de Prazos", href: "/agenda" },
-    { label: "Painel de Riscos", href: "/riscos" },
+    ...(riskPanelEnabled ? [{ label: "Painel de Riscos", href: "/riscos" }] : []),
   ]
 
   return (
