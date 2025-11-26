@@ -2,10 +2,9 @@
 
 import Sidebar from "@/components/sidebar"
 import { AlertTriangle, TrendingUp, Shield, AlertCircle, FileText, Filter, RefreshCw } from "lucide-react"
-import { useState, useEffect, useMemo } from "react"
+import { ChangeEvent, ComponentType, useState, useEffect, useMemo } from "react"
 import { API_BASE_URL } from "@/lib/config"
 import { PenaltyReportDto, ContractSimpleDto, DueDeliverableReportDto } from "@/lib/api-types"
-import { toast } from "sonner"
 
 interface RiskItem {
   id: string;
@@ -19,12 +18,15 @@ interface RiskItem {
   source: "penalty" | "deliverable";
 }
 
+type SeverityFilter = "Todos" | "Alto" | "Médio" | "Baixo"
+
 export default function PainelRiscosPage() {
   const [risks, setRisks] = useState<RiskItem[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ high: 0, medium: 0, low: 0 });
-  const [severityFilter, setSeverityFilter] = useState<"Todos" | "Alto" | "Médio" | "Baixo">("Todos");
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("Todos");
   const [searchTerm, setSearchTerm] = useState("");
+  const [dataUnavailable, setDataUnavailable] = useState(false)
 
   useEffect(() => {
     const fetchRisks = async () => {
@@ -68,8 +70,6 @@ export default function PainelRiscosPage() {
               source: "penalty",
             })
           })
-        } else {
-          toast.warning("Não foi possível carregar penalidades do backend.")
         }
 
         if (dueDeliverablesRes.status === "fulfilled" && dueDeliverablesRes.value.ok) {
@@ -92,48 +92,23 @@ export default function PainelRiscosPage() {
               source: "deliverable",
             })
           })
-        } else {
-          toast.warning("Não foi possível carregar entregas em risco do backend.")
         }
 
         if (mappedRisks.length === 0) {
-          toast.error("Nenhum dado recebido do backend. Mostrando exemplo.")
-          mappedRisks.push({
-            id: "mock-risk",
-            type: "Multa",
-            contractName: "DEMO-001/2024",
-            level: "Alto",
-            levelColor: "bg-red-100 text-red-800 border-red-200",
-            description: "Atraso em entrega crítica",
-            date: new Date().toLocaleDateString("pt-BR"),
-            value: 5000,
-            source: "penalty",
-          })
-          high = 1
-          medium = 0
-          low = 0
+          setDataUnavailable(true)
+          setRisks([])
+          setStats({ high: 0, medium: 0, low: 0 })
+          return
         }
 
+        setDataUnavailable(false)
         setRisks(mappedRisks)
         setStats({ high, medium, low })
       } catch (error) {
         console.error(error)
-        toast.error("Erro ao carregar riscos. Mostrando dados simulados.")
-        const mockRisks: RiskItem[] = [
-          {
-            id: "risk-1",
-            type: "Multa",
-            contractName: "DEMO-001/2024",
-            level: "Alto",
-            levelColor: "bg-red-100 text-red-800 border-red-200",
-            description: "Atraso em entrega crítica",
-            date: new Date().toLocaleDateString("pt-BR"),
-            value: 5000,
-            source: "penalty",
-          },
-        ]
-        setRisks(mockRisks)
-        setStats({ high: 1, medium: 0, low: 0 })
+        setRisks([])
+        setStats({ high: 0, medium: 0, low: 0 })
+        setDataUnavailable(true)
       } finally {
         setLoading(false)
       }
@@ -172,15 +147,17 @@ export default function PainelRiscosPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex items-center gap-2 rounded-xl border px-3 py-2 bg-white">
-              <Filter size={18} className="text-gray-500" />
-              <select
-                value={severityFilter}
-                onChange={(event) => setSeverityFilter(event.target.value as any)}
-                className="outline-none bg-transparent text-sm text-gray-700"
-              >
-                <option value="Todos">Todos os riscos</option>
-                <option value="Alto">Apenas altos</option>
+              <div className="flex items-center gap-2 rounded-xl border px-3 py-2 bg-white">
+                <Filter size={18} className="text-gray-500" />
+                <select
+                  value={severityFilter}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                    setSeverityFilter(event.target.value as SeverityFilter)
+                  }
+                  className="outline-none bg-transparent text-sm text-gray-700"
+                >
+                  <option value="Todos">Todos os riscos</option>
+                  <option value="Alto">Apenas altos</option>
                 <option value="Médio">Apenas médios</option>
                 <option value="Baixo">Apenas baixos</option>
               </select>
@@ -221,9 +198,14 @@ export default function PainelRiscosPage() {
                 <h2 className="text-lg font-semibold text-foreground mb-6">Ocorrências Recentes</h2>
                 {loading ? (
                     <p className="text-center py-8 text-gray-500">Carregando riscos...</p>
+                ) : dataUnavailable ? (
+                  <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-gray-600">
+                    <p className="font-semibold mb-1">Dados de riscos indisponíveis.</p>
+                    <p className="text-sm text-gray-500">Verifique a configuração da API antes de tentar novamente.</p>
+                  </div>
                 ) : (
-                    <div className="space-y-4">
-                    {filteredRisks.length === 0 ? <p className="text-gray-500">Nenhum risco encontrado para o filtro.</p> : filteredRisks.map((risk) => (
+                  <div className="space-y-4">
+                  {filteredRisks.length === 0 ? <p className="text-gray-500">Nenhum risco encontrado para o filtro.</p> : filteredRisks.map((risk) => (
                         <div key={risk.id} className="border border-gray-100 rounded-xl p-4 hover:border-primary/30 transition-colors bg-gray-50/50">
                             <div className="flex items-start justify-between mb-2">
                                 <div className="flex items-center gap-3">
@@ -255,7 +237,7 @@ export default function PainelRiscosPage() {
                             </div>
                         </div>
                     ))}
-                    </div>
+                  </div>
                 )}
             </div>
 
@@ -263,23 +245,29 @@ export default function PainelRiscosPage() {
             <div className="bg-white rounded-2xl shadow-sm p-6 h-fit">
               <h2 className="text-lg font-semibold text-foreground mb-6">Distribuição</h2>
               <div className="space-y-6">
-                {[
-                    { label: "Alto Risco", count: stats.high, color: "bg-red-500", width: totalRisks ? (stats.high/totalRisks)*100 : 0 },
-                    { label: "Médio Risco", count: stats.medium, color: "bg-yellow-500", width: totalRisks ? (stats.medium/totalRisks)*100 : 0 },
-                    { label: "Baixo Risco", count: stats.low, color: "bg-green-500", width: totalRisks ? (stats.low/totalRisks)*100 : 0 },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <div className="flex items-center justify-between mb-2 text-sm">
-                      <span className="font-medium">{item.label}</span>
-                      <span className="font-bold">{item.count}</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2.5">
-                      <div className={`${item.color} h-2.5 rounded-full transition-all duration-500`} style={{ width: `${item.width}%` }} />
-                    </div>
-                  </div>
-                ))}
-                
-                {totalRisks === 0 && <p className="text-center text-xs text-gray-400 mt-4">Sem dados suficientes para gráfico.</p>}
+                {dataUnavailable ? (
+                  <p className="text-center text-sm text-gray-500">Sem dados de risco para exibir no momento.</p>
+                ) : (
+                  <>
+                    {[
+                        { label: "Alto Risco", count: stats.high, color: "bg-red-500", width: totalRisks ? (stats.high/totalRisks)*100 : 0 },
+                        { label: "Médio Risco", count: stats.medium, color: "bg-yellow-500", width: totalRisks ? (stats.medium/totalRisks)*100 : 0 },
+                        { label: "Baixo Risco", count: stats.low, color: "bg-green-500", width: totalRisks ? (stats.low/totalRisks)*100 : 0 },
+                    ].map((item) => (
+                      <div key={item.label}>
+                        <div className="flex items-center justify-between mb-2 text-sm">
+                          <span className="font-medium">{item.label}</span>
+                          <span className="font-bold">{item.count}</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2.5">
+                          <div className={`${item.color} h-2.5 rounded-full transition-all duration-500`} style={{ width: `${item.width}%` }} />
+                        </div>
+                      </div>
+                    ))}
+
+                    {totalRisks === 0 && <p className="text-center text-xs text-gray-400 mt-4">Sem dados suficientes para gráfico.</p>}
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -288,17 +276,24 @@ export default function PainelRiscosPage() {
   )
 }
 
-function RiskCard({ title, value, icon: Icon, color }: any) {
-    return (
-        <div className="bg-white rounded-2xl shadow-sm p-6 flex items-center justify-between">
-            <div>
-                <p className="text-muted-foreground text-sm mb-1">{title}</p>
-                <p className={`text-3xl font-bold ${color}`}>{value}</p>
-            </div>
-            <Icon size={32} className={color} />
-        </div>
-    )
-}
+  interface RiskCardProps {
+    title: string;
+    value: number;
+    icon: ComponentType<{ size?: number; className?: string }>;
+    color: string;
+  }
+
+  function RiskCard({ title, value, icon: Icon, color }: RiskCardProps) {
+      return (
+          <div className="bg-white rounded-2xl shadow-sm p-6 flex items-center justify-between">
+              <div>
+                  <p className="text-muted-foreground text-sm mb-1">{title}</p>
+                  <p className={`text-3xl font-bold ${color}`}>{value}</p>
+              </div>
+              <Icon size={32} className={color} />
+          </div>
+      )
+  }
 
 function mapSeverityFromString(severity: string | undefined) {
   const sev = (severity || "").toLowerCase()
